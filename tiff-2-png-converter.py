@@ -89,19 +89,22 @@ def merge_RGB(image_r,  image_g,  image_b, rgb_images, width, heigh, depth):
         r_channel = np.zeros((width,heigh))
         g_channel = np.zeros((width,heigh))
         b_channel = np.zeros((width,heigh))
-        if image_r.shape[2] != 0:
-            r_channel = image_r[z]
+        if image_r[z] is not None:
+            tmp = image_r[z]
+            r_channel = tmp[:,:,0]
         else:
             r_channel = zero_image
-        if image_g.shape[2] != 0:
-            g_channel = image_g[z]
+        if image_g[z] is not None:
+            tmp = image_g[z]
+            g_channel = tmp[:,:,1]
         else:
             g_channel = zero_image
-        if image_b.shape[2] != 0:
-            b_channel = image_b[z]
+        if image_b[z] is not None:
+            tmp = image_b[z]
+            b_channel = tmp[:,:,2]
         else:
             b_channel = zero_image
-        merged_image = cv2.merge([r_channel,g_channel,b_channel])
+        merged_image = cv2.merge((r_channel,g_channel,b_channel))
         rgb_images.append(merged_image)
 
 
