@@ -7,33 +7,35 @@ import imagesize
 import math
 
 def convert_tiff_directoryAction(source_path, dest_path):
-    list_files,width, height = list_folder_files(source_path)
-    depth = len(list_files)
-    image_r = []
-    image_g = []
-    image_b = []
-    images = []
-    for fname in list_files:
-        img = cv2.imread(fname)
-        if fname.endswith("ch1"):
-             print("Load Image " + str(len(image_r)) + " Channel 1 - "+ fname )
-             image_r.append(img)
-        elif fname.endswith("ch2"):
-             print("Load Image " + str(len(image_g)) + " Channel 2 - "+ fname )
-             image_g.append(img)
-        elif fname.endswith("ch3"):
-             print("Load Image " + str(len(image_b)) + " Channel 3 - "+ fname )
-             image_b.append(img)
+    list_files,width, heigth = list_folder_files(source_path)
+    num_images = len(list_files)
+    image_r = [None] * num_images
+    image_g = [None] * num_images
+    image_b = [None] * num_images
+    images = [None] * num_images
+    for i in range(num_images):
+        file_full_path = list_files[i]
+        img = cv2.imread(list_files[i])
+        name, extension = os.path.splitext(file_full_path)
+        if "ch1" in name:
+             print("Load Image " + str(i) + " Channel 1 - "+ file_full_path )
+             image_r[i] = img
+        elif "ch2" in name:
+             print("Load Image " + str(i) + " Channel 2 - "+ file_full_path )
+             image_g[i] = img
+        elif "ch3" in name:
+             print("Load Image " + str(i) + " Channel 3 - "+ file_full_path )
+             image_b[i] = img
         else:
-             print("Load Image " + str(len(images)) + " RGB - "+ fname )
+             print("Load Image " + str(i) + " RGB - "+ file_full_path )
              image_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB )
-             images.append(image_rgb)
+             images[i] = image_rgb
              
 
     if len(image_r) != 0 or len(image_g) != 0 or len(image_b) != 0:
-        merge_RGB(image_r, image_g, image_b, images)
+        merge_RGB(image_r, image_g, image_b, images,width,heigth,num_images)
 
-    saveToImage(images,depth,width, height,dest_path)
+    saveToImage(images,num_images,width, heigth,dest_path)
   
 def saveToImage(volume,depth,width,height, dest_path):
     z_slices = depth + 1
@@ -44,7 +46,7 @@ def saveToImage(volume,depth,width,height, dest_path):
     print("downscale " + str(downscale))  
 	
     resolution_image = ( int(width / downscale), int(height / downscale))
-    resolution_out = max(width, height) / downscale
+    
     count = 0
     image_out = np.zeros(())
     for i in range(dim):
@@ -72,7 +74,11 @@ def saveToImage(volume,depth,width,height, dest_path):
         extension = ".png"
       
     status = cv2.imwrite(name+extension,image_out)
-    
+    f = open(name+"_metadata", "a")
+    f.write("Width:"+str(width)+"\n")
+    f.write("Heigth:"+str(height)+"\n")
+    f.write("Depth:"+str(depth)+"\n")
+    f.close()
     print("Image written to file-system : ",status)
     
 
@@ -116,6 +122,7 @@ def list_folder_files(path_to_foder):
                 if intitial_size_call:
                   width, height = n_width,n_height
                   intitial_size_call = False
+                  file_list.append(file_full_path)
                 elif width == n_width  and height == n_height:
                   file_list.append(file_full_path)
                 else:
