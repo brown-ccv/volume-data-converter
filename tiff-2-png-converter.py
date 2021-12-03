@@ -6,36 +6,36 @@ import numpy as np
 import imagesize
 import math
 
-def convert_tiff_directoryAction(path):
-    list_files,width, height = list_folder_files(path)
+def convert_tiff_directoryAction(source_path, dest_path):
+    list_files,width, height = list_folder_files(source_path)
     depth = len(list_files)
-    image_r = np.zeros((width,height,0))
-    image_g = np.zeros((width,height,0))
-    image_b = np.zeros((width,height,0))
-    images = np.zeros((width,height,0))
+    image_r = []
+    image_g = []
+    image_b = []
+    images = []
     for fname in list_files:
         img = cv2.imread(fname)
         if fname.endswith("ch1"):
-             print("Load Image " + str(image_r.shape[2]) + " Channel 1 - "+ fname )
-             np.vstack((image_r,img))
+             print("Load Image " + str(len(image_r)) + " Channel 1 - "+ fname )
+             image_r.append(img)
         elif fname.endswith("ch2"):
-             print("Load Image " + str(image_g.shape[2]) + " Channel 2 - "+ fname )
-             np.vstack((image_g,img))
+             print("Load Image " + str(len(image_g)) + " Channel 2 - "+ fname )
+             image_g.append(img)
         elif fname.endswith("ch3"):
-             print("Load Image " + str(image_b.shape[2]) + " Channel 3 - "+ fname )
-             np.vstack((image_b,img))
+             print("Load Image " + str(len(image_b)) + " Channel 3 - "+ fname )
+             image_b.append(img)
         else:
-             print("Load Image " + str(images.shape[2]) + " RGB - "+ fname )
+             print("Load Image " + str(len(images)) + " RGB - "+ fname )
              image_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB )
-             np.vstack((images,image_rgb))
+             images.append(image_rgb)
              
 
-    if image_r.shape[0] != 0 or  image_g.shape[0] != 0 or image_g.shape[0] != 0:
+    if len(image_r) != 0 or len(image_g) != 0 or len(image_b) != 0:
         merge_RGB(image_r, image_g, image_b, images)
 
-    saveToImage(images,depth,width, height,"test.png")
+    saveToImage(images,depth,width, height,dest_path)
   
-def saveToImage(images,depth,width,height, filename):
+def saveToImage(volume,depth,width,height, dest_path):
     z_slices = depth + 1
     dim = math.ceil(math.sqrt(z_slices))
     max_res = math.floor(4096 / dim)
@@ -43,29 +43,36 @@ def saveToImage(images,depth,width,height, filename):
     print("resolution_image_before " + str(width)+ " "+str( height))  
     print("downscale " + str(downscale))  
 	
-    resolution_image_x,resolution_image_y = width / downscale, height / downscale
+    resolution_image = ( int(width / downscale), int(height / downscale))
     resolution_out = max(width, height) / downscale
     count = 0
-    image_out = np.zeros((dim,dim))
+    image_out = np.zeros(())
     for i in range(dim):
-        row_imgs = np.zeros((1,1))
+        imgs_row = np.zeros(())
         for j in range(dim):
-            tmp_img = np.zeros((resolution_image_x,resolution_image_y))
-            if count < images.shape[2] and count <= depth:
-               tmp_img =  cv2.resize(images[:,:,i], dim)
-            else:
-               tmp_img =  cv2.resize(images[:,:,i], dim)
-               tmp = np.zeros((resolution_image_x,resolution_image_y))
+            tmp_img = np.zeros((resolution_image))
+            if count < len(volume) and count <= depth:
+               img =volume[count]
+               tmp_img =  cv2.resize(img, resolution_image)
+            else:          
+                img =volume[0]     
+                tmp_img =  cv2.resize(img,resolution_image)
+                tmp_img[:,:] = 0
             if j == 0:
-                image_row = np.copy(tmp_img)
+                imgs_row = np.copy(tmp_img)
             else:
-                image_row = cv2.hconcat(image_row,tmp_img)
+                imgs_row = cv2.hconcat([imgs_row,tmp_img])
             count = count+1
         if i == 0:
-            image_out = np.copy(image_row)
+            image_out = np.copy(imgs_row)
         else:
-            image_out = cv2.vconcat(image_out,image_row)
-    status = cv2.imwrite('/home/img/python_grey.png',image_out)
+            image_out = cv2.vconcat([image_out,imgs_row])
+    name, extension = os.path.splitext(dest_path)
+    if not extension:
+        extension = ".png"
+      
+    status = cv2.imwrite(name+extension,image_out)
+    
     print("Image written to file-system : ",status)
     
 
@@ -77,19 +84,19 @@ def merge_RGB(image_r,  image_g,  image_b, rgb_images, width, heigh, depth):
         g_channel = np.zeros((width,heigh))
         b_channel = np.zeros((width,heigh))
         if image_r.shape[2] != 0:
-            r_channel = image_r[:,:,z]
+            r_channel = image_r[z]
         else:
             r_channel = zero_image
         if image_g.shape[2] != 0:
-            g_channel = image_g[:,:,z]
+            g_channel = image_g[z]
         else:
             g_channel = zero_image
         if image_b.shape[2] != 0:
-            b_channel = image_b[:,:,z]
+            b_channel = image_b[z]
         else:
             b_channel = zero_image
         merged_image = cv2.merge([r_channel,g_channel,b_channel])
-        np.vstack(rgb_images,merged_image)
+        rgb_images.append(merged_image)
 
 
     
@@ -122,14 +129,20 @@ def list_folder_files(path_to_foder):
 
 def main():
    parser = argparse.ArgumentParser()
-   parser.add_argument("-d", "--dir",
+   parser.add_argument("-s", "--source",
                         required=True,
-                        help="directory where the image sequence is located")
+                        help="Path to directory where the image sequence is located")
+   parser.add_argument("-d", "--dest",
+                        required=True,
+                        help="Path to the directory and filename of the result merged image (png by default) will be saved. ")
+                        
    args = parser.parse_args()
-   if os.path.exists(args.dir):
-       convert_tiff_directoryAction(args.dir)
+   name, extension = os.path.splitext(args.dest)
+   print(name)
+   if os.path.exists(args.source) and os.path.exists(os.path.dirname(name)):
+       convert_tiff_directoryAction(args.source,args.dest)
    else:
-       print('directory ' + args.dir +" does not exists")
+       print('ERROR: Verify source and destination paths exists')
        
 
 if __name__ == '__main__':
