@@ -10,7 +10,7 @@ import numpngw
 
 verbose = False
 
-def convert_tiff_directoryAction(source_path, dest_path):
+def convert_tiff_directory_action(source_path, dest_path):
     list_files,width, heigth = list_folder_files(source_path)
     num_images = len(list_files)
     image_r = [None] * num_images
@@ -49,9 +49,9 @@ def convert_tiff_directoryAction(source_path, dest_path):
     if len(image_r) != 0 or len(image_g) != 0 or len(image_b) != 0:
         merge_RGB(image_r, image_g, image_b, images,width,heigth,num_images,bits_per_sample)
 
-    saveToImage(images,num_images,width, heigth,dest_path)
+    save_to_Image(images,num_images,width, heigth,dest_path)
   
-def saveToImage(volume,depth,width,height, dest_path):
+def save_to_Image(volume,depth,width,height, dest_path):
     z_slices = depth + 1
     dim = math.ceil(math.sqrt(z_slices))
     max_res = math.floor(4096 / dim)
@@ -171,7 +171,7 @@ def main():
        verbose = True
 
    if os.path.exists(args.source) and os.path.exists(os.path.dirname(name)):
-       convert_tiff_directoryAction(args.source,args.dest)
+       convert_tiff_directory_action(args.source,args.dest)
    else:
        print('ERROR: Verify source and destination paths exists')
        
