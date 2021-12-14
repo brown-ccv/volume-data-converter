@@ -10,6 +10,29 @@ import numpngw
 
 verbose = False
 
+
+# Print iterations progress
+def printProgressBar (iteration, total, prefix = '', suffix = '', decimals = 1, length = 100, fill = '█', printEnd = "\r"):
+    """
+    Call in a loop to create terminal progress bar
+    @params:
+        iteration   - Required  : current iteration (Int)
+        total       - Required  : total iterations (Int)
+        prefix      - Optional  : prefix string (Str)
+        suffix      - Optional  : suffix string (Str)
+        decimals    - Optional  : positive number of decimals in percent complete (Int)
+        length      - Optional  : character length of bar (Int)
+        fill        - Optional  : bar fill character (Str)
+        printEnd    - Optional  : end character (e.g. "\r", "\r\n") (Str)
+    """
+    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+    filledLength = int(length * iteration // total)
+    bar = fill * filledLength + '-' * (length - filledLength)
+    print(f'\r{prefix} |{bar}| {percent}% {suffix}', end = printEnd)
+    # Print New Line on Complete
+    if iteration == total: 
+        print()
+
 def convert_tiff_directory_action(source_path, dest_path):
     list_files,width, heigth = list_folder_files(source_path)
     num_images = len(list_files)
@@ -18,6 +41,7 @@ def convert_tiff_directory_action(source_path, dest_path):
     image_b = [None] * num_images
     images = [None] * num_images
     bits_per_sample = ""
+    printProgressBar(0, num_images, prefix = 'grouping channels:', suffix = 'Complete', length = 50)
     for i in range(num_images):
         file_full_path = list_files[i]
         img = tiff.imread(list_files[i])
@@ -44,11 +68,13 @@ def convert_tiff_directory_action(source_path, dest_path):
                 print("Load Image " + str(i) + " RGB - "+ file_full_path )
              image_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB )
              images[i] = image_rgb
+        printProgressBar(i + 1, num_images, prefix = 'grouping channels:', suffix = 'Complete', length = 50)
              
 
     if len(image_r) != 0 or len(image_g) != 0 or len(image_b) != 0:
         merge_RGB(image_r, image_g, image_b, images,width,heigth,num_images,bits_per_sample)
 
+    print("##Saving Image to: "+dest_path)
     save_to_Image(images,num_images,width, heigth,dest_path)
   
 def save_to_Image(volume,depth,width,height, dest_path):
@@ -88,13 +114,19 @@ def save_to_Image(volume,depth,width,height, dest_path):
     if not extension:
         extension = ".png"
     
+    amax = np.amax(image_out)
     #normalized_image= cv2.normalize(img,  image_out, 0, 255)
     #status = cv2.imwrite(name+extension,image_out)
     numpngw.write_png(name+extension,image_out)
+
+    
+
     f = open(name+"_metadata", "a")
     f.write("Width:"+str(width)+"\n")
     f.write("Heigth:"+str(height)+"\n")
     f.write("Depth:"+str(depth)+"\n")
+    f.write("bps:"+str(image_out.dtype)+"\n")
+    f.write("amax:"+str(amax)+"\n")
     f.close()
     print("Image written to file-system : "+name+extension)
     
@@ -102,6 +134,7 @@ def save_to_Image(volume,depth,width,height, dest_path):
     
 def merge_RGB(image_r,  image_g,  image_b, rgb_images, width, heigh, depth,bits_per_sample):
     zero_image = np.zeros((width,heigh),dtype=bits_per_sample)
+    printProgressBar(0, depth, prefix = 'Mergin channels:', suffix = 'Complete', length = 50)
     for z in range(depth):
         r_channel = np.zeros((width,heigh),dtype=bits_per_sample)
         g_channel = np.zeros((width,heigh),dtype=bits_per_sample)
@@ -121,8 +154,11 @@ def merge_RGB(image_r,  image_g,  image_b, rgb_images, width, heigh, depth,bits_
             b_channel = image_b[z]
         else:
             b_channel = zero_image
-        merged_image = np.dstack([r_channel,g_channel,b_channel])
+        #merged_image = np.dstack([r_channel,g_channel,b_channel])
+        merged_image = cv2.merge([r_channel,g_channel,b_channel])
+        merged_image = cv2.cvtColor(merged_image, cv2.COLOR_BGR2RGB )
         rgb_images[z]= merged_image
+        printProgressBar(z+1, depth, prefix = 'Mergin channels:', suffix = 'Complete', length = 50)
 
 
     
