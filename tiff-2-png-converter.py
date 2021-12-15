@@ -1,3 +1,4 @@
+
 import argparse
 import sys
 import os 
@@ -78,6 +79,16 @@ def convert_tiff_directory_action(source_path, dest_path):
     save_to_Image(images,num_images,width, heigth,dest_path)
   
 def save_to_Image(volume,depth,width,height, dest_path):
+
+    # scale data to 0.0-1.0
+    # for i in range(len(volume)):
+    #     data = volume[i].copy()
+    #     max_data = np.amax(data)
+    #     min_data = np.amin(data)
+    #     data = (data - min_data)/(max_data - min_data)
+    #     data = data * 255
+    #     volume[i] = data.astype('uint16')
+
     z_slices = depth + 1
     dim = math.ceil(math.sqrt(z_slices))
     max_res = math.floor(4096 / dim)
@@ -90,6 +101,7 @@ def save_to_Image(volume,depth,width,height, dest_path):
     
     count = 0
     image_out = np.zeros(())
+    printProgressBar(0, dim, prefix = 'Mapping slices to 2D:', suffix = 'Complete', length = 50)
     for i in range(dim):
         imgs_row = np.zeros(())
         for j in range(dim):
@@ -110,15 +122,43 @@ def save_to_Image(volume,depth,width,height, dest_path):
             image_out = np.copy(imgs_row)
         else:
             image_out = cv2.vconcat([image_out,imgs_row])
+    printProgressBar(i+1, dim, prefix = 'Mapping slices to 2D:', suffix = 'Complete', length = 50)
+    
     name, extension = os.path.splitext(dest_path)
     if not extension:
         extension = ".png"
     
-    amax = np.amax(image_out)
-    #normalized_image= cv2.normalize(img,  image_out, 0, 255)
-    #status = cv2.imwrite(name+extension,image_out)
-    numpngw.write_png(name+extension,image_out)
+    
+    #src = cv2.cvtColor(src, cv.COLOR_BGR2GRAY)
+    #image_out = cv2.cvtColor(image_out, cv2.COLOR_BGR2GRAY)
+    #image_out_8bit = image_out.astype(np.uint8)
+    amax = np.amax(image_out)    
+    # hist,bins = np.histogram(image_out.flatten(),amax,[0,amax])
+    # cdf = hist.cumsum()
+    # cdf_normalized = cdf * hist.max()/ cdf.max()
+    #normalized_image = cv2.equalizeHist(image_out_8bit)
+    
+    #resultimage = np.zeros((height,width))
+    #normalized_image= cv2.normalize(img,  resultimage, 0, 255,cv2.NORM_MINMAX)
+    # print("image_out.amax: "+str(amax))
+    # print("image_out.dtype: "+str(image_out.dtype))
+    # normalized_image = np.array((image_out.shape),dtype="uint16")
+    # print("normalized_image.dtype: "+str(normalized_image.dtype))
+    # normalized_image = image_out // np.uint16(amax)
+    # print("normalized_image.dtype2: "+str(normalized_image.dtype))
+    # print(np.amax(normalized_image))
+    # normalized_image = normalized_image*np.uint16(255)
+    # print(np.amax(normalized_image))
 
+    #amax2 = np.amax(normalized_image)
+    #print("normalized_image.dtype: "+str(normalized_image.dtype))
+    #status = cv2.imwrite(name+extension,image_out)
+    #normalized_image_u16bit = normalized_image.astype(np.uint16)
+    norm = np.zeros((image_out.shape))
+    normalized_image_u16bit = cv2.normalize(image_out,norm,0,65535,cv2.NORM_MINMAX)
+    numpngw.write_png(name+extension,image_out)
+    numpngw.write_png(name+"_normalized"+extension,normalized_image_u16bit)
+    
     
 
     f = open(name+"_metadata", "a")
@@ -127,6 +167,7 @@ def save_to_Image(volume,depth,width,height, dest_path):
     f.write("Depth:"+str(depth)+"\n")
     f.write("bps:"+str(image_out.dtype)+"\n")
     f.write("amax:"+str(amax)+"\n")
+    #f.write("amax normalized:"+str(amax2)+"\n")
     f.close()
     print("Image written to file-system : "+name+extension)
     
@@ -140,27 +181,55 @@ def merge_RGB(image_r,  image_g,  image_b, rgb_images, width, heigh, depth,bits_
         g_channel = np.zeros((width,heigh),dtype=bits_per_sample)
         b_channel = np.zeros((width,heigh),dtype=bits_per_sample)
         if image_r[z] is not None:
-            
-            r_channel = image_r[z]
+            equilized_r_channel = equalize_imgage_histogram(image_r[z])
+            r_channel = equilized_r_channel.astype(np.uint16)
+            #r_channel = image_r[z]
         else:
             r_channel = zero_image
         if image_g[z] is not None:
-            
+            #equilized_g_channel = equalize_imgage_histogram(image_g[z])
             g_channel = image_g[z]
+            #g_channel = equilized_g_channel.astype(np.uint16)
         else:
             g_channel = zero_image
         if image_b[z] is not None:
-            
+            #equilized_b_channel = equalize_imgage_histogram(image_b[z])
             b_channel = image_b[z]
+            #b_channel = equilized_b_channel.astype(np.uint16)
         else:
             b_channel = zero_image
         #merged_image = np.dstack([r_channel,g_channel,b_channel])
+
         merged_image = cv2.merge([r_channel,g_channel,b_channel])
         merged_image = cv2.cvtColor(merged_image, cv2.COLOR_BGR2RGB )
-        rgb_images[z]= merged_image
+        #gamma_correct_image = gamma_correction(merged_image,2.2)
+        #rgb_images[z]=  gamma_correct_image.astype('uint16')
+        rgb_images[z]=  merged_image
         printProgressBar(z+1, depth, prefix = 'Mergin channels:', suffix = 'Complete', length = 50)
 
+def equalize_imgage_histogram(img):
+    # image_out = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    # image_out_8bit = image_out.astype(np.uint8)
+    # equalizded_image = cv2.equalizeHist(image_out_8bit)
+    # return equalizded_image
+    flat_img = img.flatten()
+    hist,bins = np.histogram(img.flatten(),2**16,[0,2**16])
+    cdf = hist.cumsum()
+    cdf_normalized = cdf * hist.max()/ cdf.max()
+    cdf_m = np.ma.masked_equal(cdf,0)
+    cdf_m = (cdf_m - cdf_m.min())*255/(cdf_m.max()-cdf_m.min())
+    cdf = np.ma.filled(cdf_m,0).astype('uint16')
+    return cdf
 
+
+def gamma_correction(img: np.ndarray, gamma: float=1.0):
+  igamma = 1.0 / gamma
+
+  imin, imax = img.min(), img.max()
+  img_c = img.copy()
+  img_c = ((img_c - imin) / (imax - imin)) ** igamma
+  img_c = img_c * (imax - imin) + imin
+  return img_c
     
 
 def list_folder_files(path_to_foder):
