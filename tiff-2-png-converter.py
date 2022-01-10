@@ -184,7 +184,7 @@ def merge_RGB(image_r,  image_g,  image_b, rgb_images, width, heigh, depth,bits_
         #merged_image = np.dstack([r_channel,g_channel,b_channel])
 
         merged_image = cv2.merge([r_channel,g_channel,b_channel])
-        merged_image = cv2.cvtColor(merged_image, cv2.COLOR_BGR2RGB )
+        #merged_image = cv2.cvtColor(merged_image, cv2.COLOR_BGR2RGB )
         if gamma:
             merged_image = gamma_correction(merged_image,gamma_val)
         rgb_images[z]=  merged_image
@@ -237,12 +237,15 @@ def main():
    args = parser.parse_args()
    name, extension = os.path.splitext(args.dest)
    if args.verbose:
+       global verbose
        verbose = True
 
-   if args.gamma:
-        equalize_histogram = True
+   if args.equalize:
+       global equalize_histogram
+       equalize_histogram = True
     
    if args.gamma:
+       global gamma,gamma_val
        gamma = True
        gamma_val = args.gamma
 
