@@ -9,10 +9,12 @@ import math
 import tifffile  as tiff
 import numpngw
 from progress_bar import *
+from image_process_helper import *
 
 verbose = False
-
-
+equalize_histogram = False
+gamma = False
+gamma_val = 1
 
 
 def convert_tiff_directory_action(source_path, dest_path):
@@ -162,57 +164,32 @@ def merge_RGB(image_r,  image_g,  image_b, rgb_images, width, heigh, depth,bits_
         g_channel = np.zeros((width,heigh),dtype=bits_per_sample)
         b_channel = np.zeros((width,heigh),dtype=bits_per_sample)
         if image_r[z] is not None:
-            equilized_r_channel = equalize_imgage_histogram(image_r[z])
-            r_channel = equilized_r_channel.astype(np.uint16)
-            #r_channel = image_r[z]
+            r_channel = image_r[z]
+            if equalize_histogram:
+                r_channel = equalize_imgage_histogram(r_channel)
         else:
             r_channel = zero_image
         if image_g[z] is not None:
-            #equilized_g_channel = equalize_imgage_histogram(image_g[z])
             g_channel = image_g[z]
-            #g_channel = equilized_g_channel.astype(np.uint16)
+            if equalize_histogram:
+                g_channel = equalize_imgage_histogram(g_channel)
         else:
             g_channel = zero_image
         if image_b[z] is not None:
-            #equilized_b_channel = equalize_imgage_histogram(image_b[z])
             b_channel = image_b[z]
-            #b_channel = equilized_b_channel.astype(np.uint16)
+            if equalize_histogram:
+                b_channel = equalize_imgage_histogram(b_channel)
         else:
             b_channel = zero_image
         #merged_image = np.dstack([r_channel,g_channel,b_channel])
 
         merged_image = cv2.merge([r_channel,g_channel,b_channel])
         merged_image = cv2.cvtColor(merged_image, cv2.COLOR_BGR2RGB )
-        #gamma_correct_image = gamma_correction(merged_image,2.2)
-        #rgb_images[z]=  gamma_correct_image.astype('uint16')
+        if gamma:
+            merged_image = gamma_correction(merged_image,gamma_val)
         rgb_images[z]=  merged_image
         printProgressBar(z+1, depth, prefix = 'Mergin channels:', suffix = 'Complete', length = 50)
-
-def equalize_imgage_histogram(img):
-    # image_out = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    # image_out_8bit = image_out.astype(np.uint8)
-    # equalizded_image = cv2.equalizeHist(image_out_8bit)
-    # return equalizded_image
-    flat_img = img.flatten()
-    hist,bins = np.histogram(img.flatten(),2**16,[0,2**16])
-    cdf = hist.cumsum()
-    cdf_normalized = cdf * hist.max()/ cdf.max()
-    cdf_m = np.ma.masked_equal(cdf,0)
-    cdf_m = (cdf_m - cdf_m.min())*255/(cdf_m.max()-cdf_m.min())
-    cdf = np.ma.filled(cdf_m,0).astype('uint16')
-    return cdf
-
-
-def gamma_correction(img: np.ndarray, gamma: float=1.0):
-  igamma = 1.0 / gamma
-
-  imin, imax = img.min(), img.max()
-  img_c = img.copy()
-  img_c = ((img_c - imin) / (imax - imin)) ** igamma
-  img_c = img_c * (imax - imin) + imin
-  return img_c
     
-
 def list_folder_files(path_to_foder):
 
     file_list = []
@@ -249,12 +226,25 @@ def main():
                         required=True,
                         help="Path to the directory and filename of the result merged image (png by default) will be saved. ")
    parser.add_argument("--verbose",
-                        help="new name for files in directory",action='store_true')
+                        help="Generate messages ouput ",action='store_true')
+    
+   parser.add_argument("--equalize",
+                        help="equilize histogram in volume slices",action='store_true')
+   
+   parser.add_argument("--gamma",
+                        help="Apply gamma correction")
                         
    args = parser.parse_args()
    name, extension = os.path.splitext(args.dest)
    if args.verbose:
        verbose = True
+
+   if args.gamma:
+        equalize_histogram = True
+    
+   if args.gamma:
+       gamma = True
+       gamma_val = args.gamma
 
    if os.path.exists(args.source) and os.path.exists(os.path.dirname(name)):
        convert_tiff_directory_action(args.source,args.dest)
