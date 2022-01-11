@@ -12,17 +12,22 @@ def gamma_correction(img: np.ndarray, gamma: float=1.0):
 
   return img_c.astype(img_dtype)
 
-def equalize_imgage_histogram(img):
-    image_out = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    image_out_8bit = image_out.astype(np.uint8)
+def equalize_imgage_histogram_opencv(img_array):
+    ##https://opencv24-python-tutorials.readthedocs.io/en/latest/py_tutorials/py_imgproc/py_histograms/py_histogram_equalization/py_histogram_equalization.html
+    img_dtype = img_array.dtype
+    image_out_8bit = img_array.astype(np.uint8)
     equalizded_image = cv2.equalizeHist(image_out_8bit)
-    return equalizded_image
-    # img_dtype = img.dtype
-    # flat_img = img.flatten()
-    # hist,bins = np.histogram(img.flatten(),2**16,[0,2**16])
-    # cdf = hist.cumsum()
-    # cdf_normalized = cdf * hist.max()/ cdf.max()
-    # cdf_m = np.ma.masked_equal(cdf,0)
-    # cdf_m = (cdf_m - cdf_m.min())*255/(cdf_m.max()-cdf_m.min())
-    # cdf = np.ma.filled(cdf_m,0).astype(img_dtype)
-    # return cdf
+    return equalizded_image.astype(img_dtype)
+
+def equalize_imgage_histogram_custom(img_array):   
+    ## https://levelup.gitconnected.com/introduction-to-histogram-equalization-for-digital-image-enhancement-420696db9e43
+    img_dtype = img_array.dtype
+    histogram_array = np.bincount(img_array.flatten(), minlength=256)
+    num_pixels = np.sum(histogram_array)
+    histogram_array = histogram_array/num_pixels
+    chistogram_array = np.cumsum(histogram_array)
+    transform_map = np.floor(255 * chistogram_array).astype(np.uint8)
+    img_list = list(img_array.flatten())
+    eq_img_list = [transform_map[p] for p in img_list]
+    eq_img_array = np.reshape(np.asarray(eq_img_list), img_array.shape)
+    return eq_img_array.astype(img_dtype)

@@ -10,9 +10,11 @@ import tifffile  as tiff
 import numpngw
 from progress_bar import *
 from image_process_helper import *
+from scipy.interpolate import interp1d
 
 verbose = False
 equalize_histogram = False
+equalize_histogram_method = None
 gamma = False
 gamma_val = 1
 
@@ -52,8 +54,7 @@ def convert_tiff_directory_action(source_path, dest_path):
                 print("Load Image " + str(i) + " RGB - "+ file_full_path )
              image_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB )
              images[i] = image_rgb
-        printProgressBar(i + 1, num_images, prefix = 'grouping channels:', suffix = 'Complete', length = 50)
-             
+        printProgressBar(i + 1, num_images, prefix = 'grouping channels:', suffix = 'Complete', length = 50)    
 
     if len(image_r) != 0 or len(image_g) != 0 or len(image_b) != 0:
         merge_RGB(image_r, image_g, image_b, images,width,heigth,num_images,bits_per_sample)
@@ -62,15 +63,6 @@ def convert_tiff_directory_action(source_path, dest_path):
     save_to_Image(images,num_images,width, heigth,dest_path)
   
 def save_to_Image(volume,depth,width,height, dest_path):
-
-    # scale data to 0.0-1.0
-    # for i in range(len(volume)):
-    #     data = volume[i].copy()
-    #     max_data = np.amax(data)
-    #     min_data = np.amin(data)
-    #     data = (data - min_data)/(max_data - min_data)
-    #     data = data * 255
-    #     volume[i] = data.astype('uint16')
 
     z_slices = depth + 1
     dim = math.ceil(math.sqrt(z_slices))
@@ -111,50 +103,22 @@ def save_to_Image(volume,depth,width,height, dest_path):
     if not extension:
         extension = ".png"
     
-    
-    #src = cv2.cvtColor(src, cv.COLOR_BGR2GRAY)
-    #image_out = cv2.cvtColor(image_out, cv2.COLOR_BGR2GRAY)
-    #image_out_8bit = image_out.astype(np.uint8)
     amax = np.amax(image_out)    
-    # hist,bins = np.histogram(image_out.flatten(),amax,[0,amax])
-    # cdf = hist.cumsum()
-    # cdf_normalized = cdf * hist.max()/ cdf.max()
-    #normalized_image = cv2.equalizeHist(image_out_8bit)
-    
-    #resultimage = np.zeros((height,width))
-    #normalized_image= cv2.normalize(img,  resultimage, 0, 255,cv2.NORM_MINMAX)
-    # print("image_out.amax: "+str(amax))
-    # print("image_out.dtype: "+str(image_out.dtype))
-    # normalized_image = np.array((image_out.shape),dtype="uint16")
-    # print("normalized_image.dtype: "+str(normalized_image.dtype))
-    # normalized_image = image_out // np.uint16(amax)
-    # print("normalized_image.dtype2: "+str(normalized_image.dtype))
-    # print(np.amax(normalized_image))
-    # normalized_image = normalized_image*np.uint16(255)
-    # print(np.amax(normalized_image))
-
-    #amax2 = np.amax(normalized_image)
-    #print("normalized_image.dtype: "+str(normalized_image.dtype))
-    #status = cv2.imwrite(name+extension,image_out)
-    #normalized_image_u16bit = normalized_image.astype(np.uint16)
     norm = np.zeros((image_out.shape))
-    normalized_image_u16bit = cv2.normalize(image_out,norm,0,65535,cv2.NORM_MINMAX)
+    normalized_image_u16bit = cv2.normalize(image_out,norm,0,2**16,cv2.NORM_MINMAX)
     numpngw.write_png(name+extension,image_out)
     numpngw.write_png(name+"_normalized"+extension,normalized_image_u16bit)
     
-    
-
-    f = open(name+"_metadata", "a")
-    f.write("Width:"+str(width)+"\n")
-    f.write("Heigth:"+str(height)+"\n")
-    f.write("Depth:"+str(depth)+"\n")
-    f.write("bps:"+str(image_out.dtype)+"\n")
-    f.write("amax:"+str(amax)+"\n")
+    file = open(name+"_metadata", "a")
+    file.write("Width:"+str(width)+"\n")
+    file.write("Heigth:"+str(height)+"\n")
+    file.write("Depth:"+str(depth)+"\n")
+    file.write("bps:"+str(image_out.dtype)+"\n")
+    file.write("amax:"+str(amax)+"\n")
     #f.write("amax normalized:"+str(amax2)+"\n")
-    f.close()
+    file.close()
     print("Image written to file-system : "+name+extension)
     
-
     
 def merge_RGB(image_r,  image_g,  image_b, rgb_images, width, heigh, depth,bits_per_sample):
     zero_image = np.zeros((width,heigh),dtype=bits_per_sample)
@@ -166,28 +130,31 @@ def merge_RGB(image_r,  image_g,  image_b, rgb_images, width, heigh, depth,bits_
         if image_r[z] is not None:
             r_channel = image_r[z]
             if equalize_histogram:
-                r_channel = equalize_imgage_histogram(r_channel)
+                r_channel = equalize_histogram_method(r_channel)
         else:
             r_channel = zero_image
         if image_g[z] is not None:
             g_channel = image_g[z]
             if equalize_histogram:
-                g_channel = equalize_imgage_histogram(g_channel)
+                g_channel = equalize_histogram_method(g_channel)
         else:
             g_channel = zero_image
         if image_b[z] is not None:
             b_channel = image_b[z]
             if equalize_histogram:
-                b_channel = equalize_imgage_histogram(b_channel)
+                b_channel = equalize_histogram_method(b_channel)
         else:
             b_channel = zero_image
-        #merged_image = np.dstack([r_channel,g_channel,b_channel])
+        
 
         merged_image = cv2.merge([r_channel,g_channel,b_channel])
-        #merged_image = cv2.cvtColor(merged_image, cv2.COLOR_BGR2RGB )
+        
         if gamma:
             merged_image = gamma_correction(merged_image,gamma_val)
         rgb_images[z]=  merged_image
+
+
+
         printProgressBar(z+1, depth, prefix = 'Mergin channels:', suffix = 'Complete', length = 50)
     
 def list_folder_files(path_to_foder):
@@ -228,8 +195,11 @@ def main():
    parser.add_argument("--verbose",
                         help="Generate messages ouput ",action='store_true')
     
-   parser.add_argument("--equalize",
-                        help="equilize histogram in volume slices",action='store_true')
+   parser.add_argument("--equalize1",
+                        help="equilize histogram in volume slices using opencv functionality",action='store_true')
+   
+   parser.add_argument("--equalize2",
+                        help="equilize histogram in volume slices using custom implementation",action='store_true')
    
    parser.add_argument("--gamma",
                         help="Apply gamma correction")
@@ -240,9 +210,15 @@ def main():
        global verbose
        verbose = True
 
-   if args.equalize:
+   if args.equalize1 or args.equalize2:
        global equalize_histogram
+       global equalize_histogram_method
        equalize_histogram = True
+       if args.equalize1:
+           equalize_histogram_method = equalize_imgage_histogram_opencv
+       if args.equalize2:
+           equalize_histogram_method = equalize_imgage_histogram_custom
+
     
    if args.gamma:
        global gamma,gamma_val
