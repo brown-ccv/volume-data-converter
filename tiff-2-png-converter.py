@@ -11,6 +11,7 @@ import numpngw
 from progress_bar import *
 from image_process_helper import *
 from scipy.interpolate import interp1d
+import re
 
 verbose = False
 equalize_histogram = False
@@ -19,49 +20,79 @@ gamma = False
 gamma_val = 1
 
 
-def convert_tiff_directory_action(source_path, dest_path):
+def convert_tiff_directory_action(source_path, dest_path, num_images=None):
     list_files,width, heigth = list_folder_files(source_path)
-    num_images = len(list_files)
+    if num_images is None:
+        num_images = len(list_files)
     image_r = [None] * num_images
     image_g = [None] * num_images
     image_b = [None] * num_images
     images = [None] * num_images
     bits_per_sample = ""
     printProgressBar(0, num_images, prefix = 'grouping channels:', suffix = 'Complete', length = 50)
-    for i in range(num_images):
+    for i in range(len(list_files)):
         file_full_path = list_files[i]
         img = tiff.imread(list_files[i])
+        ## check all images have the same data type
         if bits_per_sample=="":
             bits_per_sample = img.dtype
         elif bits_per_sample!=img.dtype:
             print("image " + file_full_path + "has a different sample type "+bits_per_sample+" expected: "+bits_per_sample)
             sys.exit("Check images bits per sample tag")
+        
         name, extension = os.path.splitext(file_full_path)
+        file_name  = os.path.basename(name)
+        sequence_number = re.search("^p[0-9]{1,5}",file_name)
+        sequence_number_int = int(sequence_number.group(0)[1:])
+        print(sequence_number_int )
         if "ch1" in name:
              if verbose:
-                print("Load Image " + str(i) + " Channel 1 - "+ file_full_path )
-             image_r[i] = img
+                print("Load Image " + str(sequence_number_int) + " Channel 1 - "+ file_full_path )
+             image_r[sequence_number_int - 1] = img
         elif "ch2" in name:
              if verbose:
-                print("Load Image " + str(i) + " Channel 2 - "+ file_full_path )
-             image_g[i] = img
+                print("Load Image " + str(sequence_number_int) + " Channel 2 - "+ file_full_path )
+             image_g[sequence_number_int - 1] = img
         elif "ch3" in name:
              if verbose:
-                print("Load Image " + str(i) + " Channel 3 - "+ file_full_path )
-             image_b[i] = img
+                print("Load Image " + str(sequence_number_int) + " Channel 3 - "+ file_full_path )
+             image_b[sequence_number_int - 1] = img
         else:
              if verbose:
-                print("Load Image " + str(i) + " RGB - "+ file_full_path )
+                print("Load Image " + str(sequence_number_int) + " RGB - "+ file_full_path )
              image_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB )
-             images[i] = image_rgb
+             images[sequence_number_int - 1] = image_rgb
         printProgressBar(i + 1, num_images, prefix = 'grouping channels:', suffix = 'Complete', length = 50)    
+
+    #interpolate
+    interpolateData(image_g,width,heigth,num_images)
 
     if len(image_r) != 0 or len(image_g) != 0 or len(image_b) != 0:
         merge_RGB(image_r, image_g, image_b, images,width,heigth,num_images,bits_per_sample)
 
     print("##Saving Image to: "+dest_path)
     save_to_Image(images,num_images,width, heigth,dest_path)
-  
+
+def interpolateData(img_array, width,heigth, num_images):
+    #ptython list to numpy 3d array
+    img_3d_array = np.array((width,heigth))
+    for z in range(num_images):
+        img_2d_array = img_array[z]
+        if z == 0:
+            img_3d_array = img_2d_array
+        elif img_2d_array is not None:
+            img_3d_array = np.dstack([img_3d_array,img_2d_array])
+        else:
+            img_3d_array = np.dstack([img_3d_array,np.zeros((width,heigth))])
+    min_data = np.amin(np.amin(img_3d_array,axis=2))
+    max_data = np.amax(np.amax(img_3d_array,axis=2))
+    print("Minimum value in the whole array:%d"%(min_data))   
+    print("Maximum value in the whole array:%d"%(max_data)) 
+    min_max_scale = np.arange(min_data, max_data)
+    
+    #reshaped_array = np_array.reshape(4, 2)
+    #print("")
+
 def save_to_Image(volume,depth,width,height, dest_path):
 
     z_slices = depth + 1
@@ -194,7 +225,10 @@ def main():
                         help="Path to the directory and filename of the result merged image (png by default) will be saved. ")
    parser.add_argument("--verbose",
                         help="Generate messages ouput ",action='store_true')
-    
+   
+   parser.add_argument("--num_imgs",
+                        help="Generate messages ouput ")
+
    parser.add_argument("--equalize1",
                         help="equilize histogram in volume slices using opencv functionality",action='store_true')
    
@@ -206,6 +240,7 @@ def main():
                         
    args = parser.parse_args()
    name, extension = os.path.splitext(args.dest)
+
    if args.verbose:
        global verbose
        verbose = True
@@ -219,6 +254,9 @@ def main():
        if args.equalize2:
            equalize_histogram_method = equalize_imgage_histogram_custom
 
+   num_imgs = None
+   if args.num_imgs:
+       num_imgs = int(args.num_imgs)
     
    if args.gamma:
        global gamma,gamma_val
@@ -226,7 +264,7 @@ def main():
        gamma_val = args.gamma
 
    if os.path.exists(args.source) and os.path.exists(os.path.dirname(name)):
-       convert_tiff_directory_action(args.source,args.dest)
+       convert_tiff_directory_action(args.source,args.dest,num_imgs)
    else:
        print('ERROR: Verify source and destination paths exists')
        
