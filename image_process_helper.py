@@ -12,14 +12,14 @@ def gamma_correction(img: np.ndarray, gamma: float=1.0):
 
   return img_c.astype(img_dtype)
 
-def equalize_imgage_histogram_opencv(img_array):
+def equalize_image_histogram_opencv(img_array):
     ##https://opencv24-python-tutorials.readthedocs.io/en/latest/py_tutorials/py_imgproc/py_histograms/py_histogram_equalization/py_histogram_equalization.html
     img_dtype = img_array.dtype
     image_out_8bit = img_array.astype(np.uint8)
     equalizded_image = cv2.equalizeHist(image_out_8bit)
     return equalizded_image.astype(img_dtype)
 
-def equalize_imgage_histogram_custom(img_array):   
+def equalize_image_histogram_custom(img_array):   
     ## https://levelup.gitconnected.com/introduction-to-histogram-equalization-for-digital-image-enhancement-420696db9e43
     img_dtype = img_array.dtype
     histogram_array = np.bincount(img_array.flatten(), minlength=256)
