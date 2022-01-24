@@ -8,7 +8,7 @@ import math
 import tifffile as tiff
 import numpngw
 from progress_bar import print_progress_bar
-from image_process_helper import *
+import image_process_helper as iph
 from scipy.interpolate import interp1d
 import re
 
@@ -67,8 +67,7 @@ class TiffProcessor:
             TiffProcessor.source = args.source
             TiffProcessor.dest = name
         else:
-            print("ERROR: Verify source and destination paths exists")
-            sys.exit()
+            raise ValueError("ERROR: Verify source and destination paths exists")
 
         if args.verbose:
             TiffProcessor.verbose = True
@@ -76,11 +75,11 @@ class TiffProcessor:
             TiffProcessor.equalize_histogram = True
             if args.equalize1:
                 TiffProcessor.equalize_histogram_method = (
-                    equalize_image_histogram_opencv
+                    iph.equalize_image_histogram_opencv
                 )
             if args.equalize2:
                 TiffProcessor.equalize_histogram_method = (
-                    equalize_image_histogram_custom
+                    iph.equalize_image_histogram_custom
                 )
 
         if args.gamma:
@@ -108,7 +107,7 @@ class TiffProcessor:
             if bits_per_sample == "":
                 bits_per_sample = img.dtype
             elif bits_per_sample != img.dtype:
-                print(
+                raise ValueError(
                     "image "
                     + file_full_path
                     + "has a different sample type "
@@ -116,7 +115,6 @@ class TiffProcessor:
                     + " expected: "
                     + bits_per_sample
                 )
-                sys.exit("Check images bits per sample tag")
 
             name, extension = os.path.splitext(file_full_path)
             file_name = os.path.basename(name)
@@ -168,12 +166,11 @@ class TiffProcessor:
             )
 
         if len(image_r) != 0 or len(image_g) != 0 or len(image_b) != 0:
-            self.merge_RGB(
-                image_r, image_g, image_b, images, width, heigth, bits_per_sample
-            )
+            image_channels = [image_r, image_g, image_b]
+            self.merge_rgb(image_channels, images, width, heigth, bits_per_sample)
 
         print("##Saving Image to: " + self.dest)
-        self.save_to_Image(images, width, heigth)
+        self.save_to_image(images, width, heigth)
 
     def interpolateData(self, img_array, width, heigth, num_images):
         ## STILL IN DEVELOP - NOT SURE IF WE NEED IT
@@ -193,10 +190,7 @@ class TiffProcessor:
         print("Maximum value in the whole array:%d" % (max_data))
         min_max_scale = np.arange(min_data, max_data)
 
-        # reshaped_array = np_array.reshape(4, 2)
-        # print("")
-
-    def save_to_Image(self, volume, width, height):
+    def save_to_image(self, volume, width, height):
 
         z_slices = self.num_imgs + 1
         dim = math.ceil(math.sqrt(z_slices))
@@ -258,41 +252,34 @@ class TiffProcessor:
         file.close()
         print("Image written to file-system : " + name + extension)
 
-    def merge_RGB(
-        self, image_r, image_g, image_b, rgb_images, width, heigh, bits_per_sample
-    ):
-        zero_image = np.zeros((width, heigh), dtype=bits_per_sample)
+    def merge_rgb(self, image_channels, rgb_images, width, height, bits_per_sample):
+        zero_image = np.zeros((width, height), dtype=bits_per_sample)
         print_progress_bar(
             0, self.num_imgs, prefix="Mergin channels:", suffix="Complete", length=50
         )
         for z in range(self.num_imgs):
-            r_channel = np.zeros((width, heigh), dtype=bits_per_sample)
-            g_channel = np.zeros((width, heigh), dtype=bits_per_sample)
-            b_channel = np.zeros((width, heigh), dtype=bits_per_sample)
-            if image_r[z] is not None:
-                r_channel = image_r[z]
-                if self.equalize_histogram:
-                    r_channel = self.equalize_histogram_method(r_channel)
-            else:
-                r_channel = zero_image
-            if image_g[z] is not None:
-                g_channel = image_g[z]
-                if self.equalize_histogram:
-                    g_channel = self.equalize_histogram_method(g_channel)
-            else:
-                g_channel = zero_image
-            if image_b[z] is not None:
-                b_channel = image_b[z]
-                if self.equalize_histogram:
-                    b_channel = self.equalize_histogram_method(b_channel)
-            else:
-                b_channel = zero_image
 
-            merged_image = cv2.merge([r_channel, g_channel, b_channel])
+            r_channel = np.zeros((width, height), dtype=bits_per_sample)
+            g_channel = np.zeros((width, height), dtype=bits_per_sample)
+            b_channel = np.zeros((width, height), dtype=bits_per_sample)
+            current_image_channels = [r_channel, g_channel, b_channel]
+            ## loop over the channels :  r = 0, g = 1, b =2
+            for i in range(3):
+                current_channel = image_channels[i]
+                if current_channel[z] is not None:
+                    current_image_channels[i] = current_channel[z]
+                    if self.equalize_histogram:
+                        current_image_channels[i] = self.equalize_histogram_method(
+                            current_image_channels[i]
+                        )
+                else:
+                    current_image_channels[i] = zero_image
+
+            merged_image = cv2.merge(current_image_channels)
 
             if self.gamma:
                 float_gamma = float(self.gamma_val)
-                merged_image = gamma_correction(merged_image, float_gamma)
+                merged_image = iph.gamma_correction(merged_image, float_gamma)
             rgb_images[z] = merged_image
 
             print_progress_bar(
@@ -326,7 +313,7 @@ class TiffProcessor:
                     elif width == n_width and height == n_height:
                         file_list.append(file_full_path)
                     else:
-                        print(
+                        raise (
                             "image "
                             + file_full_path
                             + "has a different size "
@@ -336,7 +323,7 @@ class TiffProcessor:
                             + str(height)
                             + ")"
                         )
-                        sys.exit()
+
         else:
             print("Folder does not exists")
 
@@ -344,14 +331,18 @@ class TiffProcessor:
 
 
 def main():
-    # Create argument parser
-    parser = argparse.ArgumentParser()
-    # Add arguments
-    TiffProcessor.add_arguments(parser)
-    args = parser.parse_args()
-    TiffProcessor.configure(args)
-    tiff_processor = TiffProcessor()
-    tiff_processor.convert_to_png()
+
+    try:
+        # Create argument parser
+        parser = argparse.ArgumentParser()
+        # Add arguments
+        TiffProcessor.add_arguments(parser)
+        args = parser.parse_args()
+        TiffProcessor.configure(args)
+        tiff_processor = TiffProcessor()
+        tiff_processor.convert_to_png()
+    except ValueError:
+        print("Could not convert data to png.")
 
 
 if __name__ == "__main__":
