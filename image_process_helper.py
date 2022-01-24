@@ -4,11 +4,8 @@ import cv2
 
 def gamma_correction(img: np.ndarray, gamma: float = 1.0):
     """
-    Use opencv implementation of the equalize histogram
-
-    The official documentation of opencv equalizeHist:
-    https://opencv24-python-tutorials.readthedocs.io/en/latest/py_tutorials/py_imgproc/py_histograms/py_histogram_equalization/py_histogram_equalization.html
-
+    Custom Implementation of gamma correction to process luminance on images
+    
     """
     img_dtype = img.dtype
     igamma = 1.0 / gamma
