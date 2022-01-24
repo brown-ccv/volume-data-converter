@@ -172,7 +172,7 @@ class TiffProcessor:
         print("##Saving Image to: " + self.dest)
         self.save_to_image(images, width, heigth)
 
-    def interpolateData(self, img_array, width, heigth, num_images):
+    def interpolate_data(self, img_array, width, heigth, num_images):
         ## STILL IN DEVELOP - NOT SURE IF WE NEED IT
         # ptython list to numpy 3d array
         img_3d_array = np.array((width, heigth))
