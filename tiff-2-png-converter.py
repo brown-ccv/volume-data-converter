@@ -135,13 +135,15 @@ def build_image_sequence(volume, width, height, dtype):
     resolution_image = (int(width / downscale), int(height / downscale))
     count = 0
     image_out = np.zeros(())
-    
+
     with typer.progressbar(range(dim), label="Mapping slices to 2D") as progress:
         for i in progress:
-            imgs_row = np.zeros((),dtype=dtype)
+            imgs_row = np.zeros((), dtype=dtype)
             for j in range(dim):
-                tmp_img = np.zeros((resolution_image),dtype=dtype)
-                img_index =  (0,count)[count < len(volume) and count <= arg_values["nimgs"]]
+                tmp_img = np.zeros((resolution_image), dtype=dtype)
+                img_index = (0, count)[
+                    count < len(volume) and count <= arg_values["nimgs"]
+                ]
                 img = volume[img_index]
 
                 if img is not None:
@@ -165,7 +167,7 @@ def build_image_sequence(volume, width, height, dtype):
 
 
 def save_rgb_png_image(volume, width, height, img_type):
-    image_out = build_image_sequence(volume, width, height,img_type)
+    image_out = build_image_sequence(volume, width, height, img_type)
     name, extension = os.path.splitext(arg_values["dest"])
     if not extension:
         extension = ".png"
@@ -304,13 +306,13 @@ def convert_to_png(
                     )
                 image_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
                 images[sequence_number_int - 1] = image_rgb
-    
+
     image_channels = [image_r, image_g, image_b]
     if merge:
-        if len(image_r) != 0 or len(image_g) != 0 or len(image_b) != 0:        
+        if len(image_r) != 0 or len(image_g) != 0 or len(image_b) != 0:
             merge_rgb(image_channels, images, width, heigth, bits_per_sample)
             logging.info("##Saving Merged Image to: " + dest)
-            save_rgb_png_image(images, width, heigth,bits_per_sample)
+            save_rgb_png_image(images, width, heigth, bits_per_sample)
     else:
         name, extension = os.path.splitext(arg_values["dest"])
         if not extension:
@@ -318,9 +320,13 @@ def convert_to_png(
         # saving to 8 bit
         for channel in range(3):
             if len(image_channels[channel]) != 0:
-                file_name = name +"_chn_"+ str(channel+1)+ extension
-                image_out = build_image_sequence(image_channels[channel], width, heigth,bits_per_sample)
-                logging.info("##Saving channel "+str(channel) +" Image to: " + file_name)
+                file_name = name + "_chn_" + str(channel + 1) + extension
+                image_out = build_image_sequence(
+                    image_channels[channel], width, heigth, bits_per_sample
+                )
+                logging.info(
+                    "##Saving channel " + str(channel) + " Image to: " + file_name
+                )
                 cv2.imwrite(file_name, image_out)
 
 
