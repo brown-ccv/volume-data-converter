@@ -123,7 +123,7 @@ def merge_rgb(image_channels, rgb_images, width, height, bits_per_sample):
             rgb_images[z] = merged_image
 
 
-def build_image_sequence(volume, width, height):
+def build_image_sequence(volume, width, height, dtype):
     z_slices = arg_values["nimgs"] + 1
     dim = math.ceil(math.sqrt(z_slices))
     max_res = math.floor(4096 / dim)
@@ -138,17 +138,16 @@ def build_image_sequence(volume, width, height):
     
     with typer.progressbar(range(dim), label="Mapping slices to 2D") as progress:
         for i in progress:
-            imgs_row = np.zeros(())
+            imgs_row = np.zeros((),dtype=dtype)
             for j in range(dim):
-                tmp_img = np.zeros((resolution_image))
-                if count < len(volume) and count <= arg_values["nimgs"]:
-                    img = volume[count]
-                    if img is None:
-                        img = zero_image = np.zeros((width, height), dtype=uint8)
+                tmp_img = np.zeros((resolution_image),dtype=dtype)
+                img_index =  (0,count)[count < len(volume) and count <= arg_values["nimgs"]]
+                img = volume[img_index]
+
+                if img is not None:
                     tmp_img = cv2.resize(img, resolution_image)
-                else:
-                    img = volume[0]
-                    tmp_img = cv2.resize(img, resolution_image)
+
+                if img_index == 0:
                     tmp_img[:, :] = 0
 
                 if j == 0:
@@ -165,8 +164,8 @@ def build_image_sequence(volume, width, height):
     return image_out
 
 
-def save_rgb_png_image(volume, width, height):
-    image_out = build_image_sequence(volume, width, height)
+def save_rgb_png_image(volume, width, height, img_type):
+    image_out = build_image_sequence(volume, width, height,img_type)
     name, extension = os.path.splitext(arg_values["dest"])
     if not extension:
         extension = ".png"
@@ -311,7 +310,7 @@ def convert_to_png(
         if len(image_r) != 0 or len(image_g) != 0 or len(image_b) != 0:        
             merge_rgb(image_channels, images, width, heigth, bits_per_sample)
             logging.info("##Saving Merged Image to: " + dest)
-            save_rgb_png_image(images, width, heigth)
+            save_rgb_png_image(images, width, heigth,bits_per_sample)
     else:
         name, extension = os.path.splitext(arg_values["dest"])
         if not extension:
@@ -319,8 +318,10 @@ def convert_to_png(
         # saving to 8 bit
         for channel in range(3):
             if len(image_channels[channel]) != 0:
-                image_out = build_image_sequence(image_channels[channel], width, heigth)
-                cv2.imwrite("chn_"+ str(channel+1)+"_"+ name + extension, image_out[:, :, 1])
+                file_name = name +"_chn_"+ str(channel+1)+ extension
+                image_out = build_image_sequence(image_channels[channel], width, heigth,bits_per_sample)
+                logging.info("##Saving channel "+str(channel) +" Image to: " + file_name)
+                cv2.imwrite(file_name, image_out)
 
 
 if __name__ == "__main__":
