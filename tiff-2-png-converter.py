@@ -41,7 +41,6 @@ def list_folder_files(path_to_foder:str):
             if (
                 fname.endswith(".tif")
                 or fname.endswith(".tiff")
-                or fname.endswith(".png")
             ):
                 file_full_path = os.path.join(path_to_foder, fname)
                 n_width, n_height = imagesize.get(file_full_path)
@@ -137,34 +136,21 @@ def build_image_sequence(
 
     new_resolution_image = (int(width / downscale), int(height / downscale))
     count = 0
-    image_out = np.zeros((dim*new_resolution_image))
+    image_out = np.zeros((new_resolution_image[0]*dim,new_resolution_image[1]*dim),dtype=img_type)
 
     with typer.progressbar(range(dim), label="Mapping slices to 2D") as progress:
         for i in progress:
             imgs_row = np.zeros((), dtype=img_type)
             for j in range(dim):
                 tmp_img = np.zeros((new_resolution_image), dtype=img_type)
-                img_index = (0, count)[
-                    count < len(volume) and count <= z_slices
-                ]
-                img = volume[img_index]
+                
+                if count < len(volume) and count <= num_slices:
+                    tmp_img = cv2.resize( volume[count] , new_resolution_image)
 
-                if img is not None:
-                    tmp_img = cv2.resize(img, new_resolution_image)
+                image_out[i*new_resolution_image[0]:(i*new_resolution_image[0])+new_resolution_image[0],
+                          j*new_resolution_image[1]:(j*new_resolution_image[1])+new_resolution_image[1]] = tmp_img
 
-                if img_index == 0:
-                    tmp_img[:, :] = 0
-
-                if j == 0:
-                    imgs_row = np.copy(tmp_img)
-                else:
-                    imgs_row = cv2.hconcat([imgs_row, tmp_img])
                 count = count + 1
-
-            if i == 0:
-                image_out = np.copy(imgs_row)
-            else:
-                image_out = cv2.vconcat([image_out, imgs_row])
 
     return image_out
 
@@ -204,16 +190,8 @@ def save_rgb_png_image(
 def convert_to_png(
     src: str = typer.Argument(..., help="Path to source folder"),
     dest: str = typer.Argument(..., help="Path where png will be saved"),
-    slices: int = typer.Option(
-        None,
-        help=" Number of images in your stack. It will take all the files in the src folder by default",
-    ),
-    verbose: bool = typer.Option(
-        False,
-        help=" Output log messages on console. By default it will print to .log file",
-    ),
     channel: int = typer.Option(
-        False,
+        0,
         help=" Channel of the data to export as single png",
     ),
     gamma: float = typer.Option(
@@ -225,10 +203,6 @@ def convert_to_png(
     ),
 ):
   
-    # parser = Seqparse()
-    # parser.scan_path(src)
-    # for item in parser.output():
-    #  print(str(item))
 
     name, extension = os.path.splitext(dest)
     if not (os.path.exists(src) and os.path.exists(os.path.dirname(name))):
@@ -248,21 +222,21 @@ def convert_to_png(
 
     seqencer = Sequence(list_files)
     
-    sequence_format = seqencer.format("%4l %r")
+    sequence_format = seqencer.format("%4l %r").split()
     ## parser.format returns a separated by space string describing the properties of the found sequence
     ## [0] sequence length
     ## [1] implied range, start-end  
 
-    num_files_in_sequence = sequence_format[0]
+    num_files_in_sequence = int(sequence_format[0])
     if num_files_in_sequence == 0:
         logging.error("No sequence found in source folder")
         raise ValueError("No sequence found")
     
-    confirm_txt = "Found a sequence of "+str(num_files_in_sequence) + " images "+ sequence_format[2] + ". Do you want to proceed?"
+    confirm_txt = "Found a sequence of "+str(num_files_in_sequence) + " images "+ sequence_format[1] + ". Do you want to proceed?"
 
     
     if typer.confirm(confirm_txt, abort=False): 
-        images_in_sequence = [None] * num_files_in_sequence 
+        images_in_sequence = [None] * num_files_in_sequence
         bits_per_sample = ""
         with typer.progressbar(
             range(num_files_in_sequence), label="Reading images from directory"
@@ -283,22 +257,25 @@ def convert_to_png(
                         + " expected: "
                         + bits_per_sample
                         )
-                    images_in_sequence[slice] = img[channel]
+                    if img.ndim > 2:
+                        images_in_sequence[slice] = img[channel]
+                    else:
+                        images_in_sequence[slice] = img
                 
-    name, extension = os.path.splitext(dest)
-    if not extension:
-            extension = ".png"
+        name, extension = os.path.splitext(dest)
+        if not extension:
+                extension = ".png"
+        
+        # export as single channel image
+        file_name = name + "_chn_" + str(channel) + extension
+        image_out = build_image_sequence(
+                        images_in_sequence, width, heigth,num_files_in_sequence ,bits_per_sample
+                )
+        logging.info(
+                        "##Saving channel " + str(channel) + " Image to: " + file_name
+                )
+        cv2.imwrite(file_name, image_out)
     
-    # saving to 8 bit
-    
-    file_name = name + "_chn_" + str(channel + 1) + extension
-    image_out = build_image_sequence(
-                    images_in_sequence, width, heigth, bits_per_sample
-            )
-    logging.info(
-                    "##Saving channel " + str(channel) + " Image to: " + file_name
-            )
-    cv2.imwrite(file_name, image_out)
 
 
 if __name__ == "__main__":
