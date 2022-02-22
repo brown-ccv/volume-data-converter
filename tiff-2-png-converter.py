@@ -87,42 +87,6 @@ def interpolate_data(img_array: np.array, width: int, heigth: int, num_images: i
     min_max_scale = np.arange(min_data, max_data)
 
 
-#this function will be removed 
-def merge_rgb(
-    image_channels: np.array,
-    rgb_images: list,
-    width: int,
-    height: int,
-    z_slices: int,
-    bits_per_sample: np.dtype,
-    equalize_histogram:np.array
-):
-    zero_image = np.zeros((width, height), dtype=bits_per_sample)
-    with typer.progressbar(
-        range(z_slices), label="Mergin channels"
-    ) as progress:
-        for z in progress:
-            r_channel = np.zeros((width, height), dtype=bits_per_sample)
-            g_channel = np.zeros((width, height), dtype=bits_per_sample)
-            b_channel = np.zeros((width, height), dtype=bits_per_sample)
-            current_image_channels = [r_channel, g_channel, b_channel]
-            ## loop over the channels :  r = 0, g = 1, b =2
-            for i in range(3):
-                current_channel = image_channels[i]
-                if current_channel[z] is not None:
-                    current_image_channels[i] = current_channel[z]
-                    if equalize_histogram is not None:
-                        current_image_channels[i] = equalize_histogram(
-                            current_image_channels[i]
-                        )
-                else:
-                    current_image_channels[i] = zero_image
-            rgb_images[z] = cv2.merge(current_image_channels)
-
-     
-             
-
-
 def build_image_sequence(
     volume: np.array, width: int, height: int, z_slices: int, img_type: np.dtype
 ):
