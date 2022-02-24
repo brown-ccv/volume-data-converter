@@ -214,8 +214,6 @@ def convert_to_png(
                 file_full_path = list_files[slice]
                 if seqencer.contains(file_full_path):
                     img = tiff.imread(list_files[slice])
-                    # flat = img.flatten()
-                    # histogram[width * heigth * slice : width * heigth * (slice +1) ] = flat
                     max_pixel = (max_pixel, np.max(img))[np.max(img) > max_pixel]
                     min_pixel = (min_pixel, np.min(img))[np.min(img) < min_pixel]
                     ## check all images have the same data type
@@ -234,9 +232,7 @@ def convert_to_png(
                         images_in_sequence[slice] = img[channel]
                     else:
                         images_in_sequence[slice] = img
-        # plt.hist(histogram, bins=5) 
-        # plt.title("Histogram with 'auto' bins")
-        # plt.show()
+        
         
         logging.info("MAX Value in volume: "+str(max_pixel))
         logging.info("MIN Value in volume: "+str(min_pixel))
@@ -249,7 +245,8 @@ def convert_to_png(
             ) as progress:
                 for slice in progress:
                     _img = images_in_sequence[slice]
-                    img_8_bit = np.true_divide(_img,max_pixel)
+                    img_8_bit = np.subtract(_img,min_pixel)
+                    img_8_bit = np.true_divide(_img,np.subtract(max_pixel,min_pixel))
                     images_in_sequence_8_bit[slice]= np.multiply(img_8_bit,255).astype(np.uint8)
             
         image_out = build_image_sequence(
