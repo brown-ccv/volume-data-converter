@@ -2,6 +2,7 @@ import argparse
 import sys
 import os
 import cv2
+from cv2 import log
 import numpy as np
 import imagesize
 import math
@@ -12,6 +13,7 @@ from scipy.interpolate import interp1d
 import logging
 import re
 from collections.abc import Callable
+import matplotlib.pyplot as plt
 
 from pyseq import Item, Sequence, diff, uncompress, get_sequences
 from pyseq import SequenceError
@@ -164,7 +166,8 @@ def convert_to_png(
     ),
     equilize_histogram: str = typer.Option(
         None, help=" Options: 'opencv' or 'custom' to select implementation"
-    ),
+    )
+    
 ):
   
 
@@ -182,7 +185,7 @@ def convert_to_png(
         else:
             raise ValueError("ERROR: equilize_histogram value is not valid")
 
-    list_files, width, heigth = list_folder_files(src)
+    list_files, width, height = list_folder_files(src)
 
     seqencer = Sequence(list_files)
     
@@ -198,7 +201,9 @@ def convert_to_png(
     
     confirm_txt = "Found a sequence of "+str(num_files_in_sequence) + " images "+ sequence_format[1] + ". Do you want to proceed?"
 
-    
+    max_pixel = 0
+    min_pixel = 0
+    histogram = np.zeros((width * height *num_files_in_sequence ),dtype=np.uint16)
     if typer.confirm(confirm_txt, abort=False): 
         images_in_sequence = [None] * num_files_in_sequence
         bits_per_sample = ""
@@ -209,6 +214,10 @@ def convert_to_png(
                 file_full_path = list_files[slice]
                 if seqencer.contains(file_full_path):
                     img = tiff.imread(list_files[slice])
+                    # flat = img.flatten()
+                    # histogram[width * heigth * slice : width * heigth * (slice +1) ] = flat
+                    max_pixel = (max_pixel, np.max(img))[np.max(img) > max_pixel]
+                    min_pixel = (min_pixel, np.min(img))[np.min(img) < min_pixel]
                     ## check all images have the same data type
                     if bits_per_sample == "":
                         bits_per_sample = img.dtype
@@ -225,21 +234,49 @@ def convert_to_png(
                         images_in_sequence[slice] = img[channel]
                     else:
                         images_in_sequence[slice] = img
-                
+        # plt.hist(histogram, bins=5) 
+        # plt.title("Histogram with 'auto' bins")
+        # plt.show()
+        
+        logging.info("MAX Value in volume: "+str(max_pixel))
+        logging.info("MIN Value in volume: "+str(min_pixel))
+        
+
+        #convert to 8 bit
+        images_in_sequence_8_bit = [None] * num_files_in_sequence
+        with typer.progressbar(
+            range(num_files_in_sequence), label="Rescaling to 8 bit signal"
+            ) as progress:
+                for slice in progress:
+                    _img = images_in_sequence[slice]
+                    img_8_bit = np.true_divide(_img,max_pixel)
+                    images_in_sequence_8_bit[slice]= np.multiply(img_8_bit,255).astype(np.uint8)
+            
+        image_out = build_image_sequence(
+                        images_in_sequence_8_bit, width, height,num_files_in_sequence ,np.uint8
+                )
+        
+        
         name, extension = os.path.splitext(dest)
         if not extension:
                 extension = ".png"
         
+       
         # export as single channel image
-        file_name = name + "_chn_" + str(channel) + extension
-        image_out = build_image_sequence(
-                        images_in_sequence, width, heigth,num_files_in_sequence ,bits_per_sample
-                )
+        file_name = name + "_chn_8_bit" + str(channel) + extension
         logging.info(
                         "##Saving channel " + str(channel) + " Image to: " + file_name
                 )
         cv2.imwrite(file_name, image_out)
-    
+        file = open(name + "_metadata", "a")
+        file.write("Width:" + str(width) + "\n")
+        file.write("Heigth:" + str(height) + "\n")
+        file.write("Depth:" + str(num_files_in_sequence) + "\n")
+        file.write("bps:" + str("uint8") + "\n")
+        file.write("max:" + str(max_pixel) + "\n")
+        file.write("max:" + str(min_pixel) + "\n")
+        file.close()
+        logging.info("Image written to file-system : " + name + extension)
 
 
 if __name__ == "__main__":
