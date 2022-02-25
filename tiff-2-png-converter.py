@@ -2,348 +2,273 @@ import argparse
 import sys
 import os
 import cv2
+from cv2 import log
 import numpy as np
 import imagesize
 import math
 import tifffile as tiff
 import numpngw
-from progress_bar import print_progress_bar
 import image_process_helper as iph
 from scipy.interpolate import interp1d
+import logging
 import re
+from collections.abc import Callable
+import matplotlib.pyplot as plt
+
+from pyseq import Item, Sequence, diff, uncompress, get_sequences
+from pyseq import SequenceError
+import pyseq
 
 import typer
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[logging.FileHandler("tiff-2-png.log"), logging.StreamHandler()],
+)
 
-class TiffProcessor:
-    verbose = False
-    equalize_histogram = False
-    equalize_histogram_method = None
-    gamma = False
-    gamma_val = 1
-    num_imgs = None
-    source = None
-    dest = None
+app = typer.Typer()
 
-    @staticmethod
-    def add_arguments(parser):
-        parser.add_argument(
-            "-s",
-            "--source",
-            required=True,
-            help="Path to directory where the image sequence is located",
-        )
-        parser.add_argument(
-            "-d",
-            "--dest",
-            required=True,
-            help="Path to the directory and filename of the result merged image (png by default) will be saved. ",
-        )
-        parser.add_argument(
-            "--verbose", help="Generate messages ouput ", action="store_true"
-        )
 
-        parser.add_argument("--num_imgs", help="Generate messages ouput ")
+def list_folder_files(path_to_folder: str):
 
-        parser.add_argument(
-            "--equalize1",
-            help="equilize histogram in volume slices using opencv functionality",
-            action="store_true",
-        )
+    """
+    Checks for tiff files in a folder and returns a python list of the full paths.
+    Parameters:
+                path_to_foder (str): python list  of 2d images
 
-        parser.add_argument(
-            "--equalize2",
-            help="equilize histogram in volume slices using custom implementation",
-            action="store_true",
-        )
+    Returns:
+        Python list of string with the full paths to the images in the folder
 
-        parser.add_argument("--gamma", help="Apply gamma correction")
+    """
 
-    @staticmethod
-    def configure(args):
-
-        name, extension = os.path.splitext(args.dest)
-        if os.path.exists(args.source) and os.path.exists(os.path.dirname(name)):
-            TiffProcessor.source = args.source
-            TiffProcessor.dest = name
-        else:
-            raise ValueError("ERROR: Verify source and destination paths exists")
-
-        if args.verbose:
-            TiffProcessor.verbose = True
-        if args.equalize1 or args.equalize2:
-            TiffProcessor.equalize_histogram = True
-            if args.equalize1:
-                TiffProcessor.equalize_histogram_method = (
-                    iph.equalize_image_histogram_opencv
-                )
-            if args.equalize2:
-                TiffProcessor.equalize_histogram_method = (
-                    iph.equalize_image_histogram_custom
-                )
-
-        if args.gamma:
-            TiffProcessor.gamma = True
-            TiffProcessor.gamma_val = args.gamma
-        if args.num_imgs:
-            TiffProcessor.num_imgs = int(args.num_imgs)
-
-    def convert_to_png(self):
-        list_files, width, heigth = self.list_folder_files(self.source)
-        if self.num_imgs is None:
-            self.num_images = len(list_files)
-        image_r = [None] * self.num_imgs
-        image_g = [None] * self.num_imgs
-        image_b = [None] * self.num_imgs
-        images = [None] * self.num_imgs
-        bits_per_sample = ""
-        print_progress_bar(
-            0, self.num_imgs, prefix="grouping channels:", suffix="Complete", length=50
-        )
-        for i in range(len(list_files)):
-            file_full_path = list_files[i]
-            img = tiff.imread(list_files[i])
-            ## check all images have the same data type
-            if bits_per_sample == "":
-                bits_per_sample = img.dtype
-            elif bits_per_sample != img.dtype:
-                raise ValueError(
-                    "image "
-                    + file_full_path
-                    + "has a different sample type "
-                    + bits_per_sample
-                    + " expected: "
-                    + bits_per_sample
-                )
-
-            name, extension = os.path.splitext(file_full_path)
-            file_name = os.path.basename(name)
-            sequence_number = re.search("^p[0-9]{1,5}", file_name)
-            sequence_number_int = int(sequence_number.group(0)[1:])
-            if "ch1" in name:
-                if self.verbose:
-                    print(
-                        "Load Image "
-                        + str(sequence_number_int)
-                        + " Channel 1 - "
+    file_list = []
+    path = path_to_folder
+    intitial_size_call = True
+    width = -1
+    height = -1
+    if os.path.exists(path):
+        for fname in os.listdir(path_to_folder):
+            if fname.endswith(".tif") or fname.endswith(".tiff"):
+                file_full_path = os.path.join(path_to_folder, fname)
+                n_width, n_height = imagesize.get(file_full_path)
+                if intitial_size_call:
+                    width, height = n_width, n_height
+                    intitial_size_call = False
+                    file_list.append(file_full_path)
+                elif width == n_width and height == n_height:
+                    file_list.append(file_full_path)
+                else:
+                    raise (
+                        "image "
                         + file_full_path
+                        + "has a different size "
+                        + "("
+                        + str(width)
+                        + ","
+                        + str(height)
+                        + ")"
                     )
-                image_r[sequence_number_int - 1] = img
-            elif "ch2" in name:
-                if self.verbose:
-                    print(
-                        "Load Image "
-                        + str(sequence_number_int)
-                        + " Channel 2 - "
-                        + file_full_path
-                    )
-                image_g[sequence_number_int - 1] = img
-            elif "ch3" in name:
-                if self.verbose:
-                    print(
-                        "Load Image "
-                        + str(sequence_number_int)
-                        + " Channel 3 - "
-                        + file_full_path
-                    )
-                image_b[sequence_number_int - 1] = img
-            else:
-                if self.verbose:
-                    print(
-                        "Load Image "
-                        + str(sequence_number_int)
-                        + " RGB - "
-                        + file_full_path
-                    )
-                image_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-                images[sequence_number_int - 1] = image_rgb
-            print_progress_bar(
-                i + 1,
-                self.num_imgs,
-                prefix="grouping channels:",
-                suffix="Complete",
-                length=50,
-            )
 
-        if len(image_r) != 0 or len(image_g) != 0 or len(image_b) != 0:
-            image_channels = [image_r, image_g, image_b]
-            self.merge_rgb(image_channels, images, width, heigth, bits_per_sample)
+    else:
+        logging.error("Folder " + path + " does not exists")
 
-        print("##Saving Image to: " + self.dest)
-        self.save_to_image(images, width, heigth)
+    return file_list, height, width
 
-    def interpolate_data(self, img_array, width, heigth, num_images):
-        ## STILL IN DEVELOP - NOT SURE IF WE NEED IT
-        # ptython list to numpy 3d array
-        img_3d_array = np.array((width, heigth))
-        for z in range(num_images):
-            img_2d_array = img_array[z]
-            if z == 0:
-                img_3d_array = img_2d_array
-            elif img_2d_array is not None:
-                img_3d_array = np.dstack([img_3d_array, img_2d_array])
-            else:
-                img_3d_array = np.dstack([img_3d_array, np.zeros((width, heigth))])
-        min_data = np.amin(np.amin(img_3d_array, axis=2))
-        max_data = np.amax(np.amax(img_3d_array, axis=2))
-        print("Minimum value in the whole array:%d" % (min_data))
-        print("Maximum value in the whole array:%d" % (max_data))
-        min_max_scale = np.arange(min_data, max_data)
 
-    def save_to_image(self, volume, width, height):
+def build_image_sequence(
+    volume: np.array, width: int, height: int, z_slices: int, img_type: np.dtype
+):
+    """
+    Converts a python list of images (2d arrays) into a 2D texture map
+    Parameters:
+                volume (np.array): python list  of 2d images
+                width (int): images width
+        height (int): images height
+        z_slices (int): number of images in the stack
+        img_type (np.dtype): bits per sample in the images
+    Returns:
+        2D np.array. Tiff images sequentially placed in a texture map
 
-        z_slices = self.num_imgs + 1
-        dim = math.ceil(math.sqrt(z_slices))
-        max_res = math.floor(4096 / dim)
-        downscale = math.ceil(max(width, height) / max_res)
-        if self.verbose:
-            print("resolution_image_before " + str(width) + " " + str(height))
-            print("downscale " + str(downscale))
+    """
+    num_slices = z_slices + 1
+    dim = math.ceil(math.sqrt(num_slices))
+    max_res = math.floor(4096 / dim)
+    downscale = math.ceil(max(width, height) / max_res)
 
-        resolution_image = (int(width / downscale), int(height / downscale))
+    logging.info("resolution_image_before " + str(width) + " " + str(height))
+    logging.info("downscale " + str(downscale))
 
-        count = 0
-        image_out = np.zeros(())
-        print_progress_bar(
-            0, dim, prefix="Mapping slices to 2D:", suffix="Complete", length=50
-        )
-        for i in range(dim):
-            imgs_row = np.zeros(())
+    new_resolution_image = (int(width / downscale), int(height / downscale))
+    count = 0
+    image_out = np.zeros(
+        (new_resolution_image[0] * dim, new_resolution_image[1] * dim), dtype=img_type
+    )
+
+    with typer.progressbar(range(dim), label="Mapping slices to 2D") as progress:
+        for i in progress:
+            imgs_row = np.zeros((), dtype=img_type)
             for j in range(dim):
-                tmp_img = np.zeros((resolution_image))
-                if count < len(volume) and count <= self.num_imgs:
-                    img = volume[count]
-                    tmp_img = cv2.resize(img, resolution_image)
-                else:
-                    img = volume[0]
-                    tmp_img = cv2.resize(img, resolution_image)
-                    tmp_img[:, :] = 0
-                if j == 0:
-                    imgs_row = np.copy(tmp_img)
-                else:
-                    imgs_row = cv2.hconcat([imgs_row, tmp_img])
+                tmp_img = np.zeros((new_resolution_image), dtype=img_type)
+
+                if count < len(volume) and count <= num_slices:
+                    tmp_img = cv2.resize(volume[count], new_resolution_image)
+
+                image_out[
+                    i * new_resolution_image[0] : (i * new_resolution_image[0])
+                    + new_resolution_image[0],
+                    j * new_resolution_image[1] : (j * new_resolution_image[1])
+                    + new_resolution_image[1],
+                ] = tmp_img
+
                 count = count + 1
-            if i == 0:
-                image_out = np.copy(imgs_row)
-            else:
-                image_out = cv2.vconcat([image_out, imgs_row])
-        print_progress_bar(
-            i + 1, dim, prefix="Mapping slices to 2D:", suffix="Complete", length=50
+
+    return image_out
+
+
+@app.command()
+def convert_to_png(
+    src: str = typer.Argument(..., help="Path to source folder"),
+    dest: str = typer.Argument(..., help="Path where png will be saved"),
+    channel: int = typer.Option(
+        0,
+        help=" Channel of the data to export as single png",
+    ),
+    gamma: float = typer.Option(
+        None,
+        help=" Applies gamma correction to the dataset. Set a value > 0. Off by default",
+    ),
+    equilize_histogram: str = typer.Option(
+        None, help=" Options: 'opencv' or 'custom' to select implementation"
+    ),
+):
+
+    """
+    This function converts a tiff stack of images (volume) to a 2D texture map to be
+    loaded in the volume viewer.
+
+    Parameters:
+                src (int): Path to tiff stack root folder
+                dest (int): Path + filename of the resulting 2D texture map.
+        channel (int): On multi channel of the images (i.e rgb), the specific
+                       channel to read from. If the image only has 1 channel it reads from channel 0.
+
+    Returns:
+        None. It writes an image in the dest path. An additional meta-file is written with the information of the dataset.
+
+    """
+    name, extension = os.path.splitext(dest)
+    if not (os.path.exists(src) and os.path.exists(os.path.dirname(name))):
+        raise ValueError("ERROR: Verify source and destination paths exists")
+
+    equilize_histogram_function = None
+
+    if equilize_histogram is not None:
+        if equilize_histogram == "opencv":
+            equilize_histogram_function = iph.equalize_image_histogram_opencv
+        elif equilize_histogram == "custom":
+            equilize_histogram_function = iph.equalize_image_histogram_custom
+        else:
+            raise ValueError("ERROR: equilize_histogram value is not valid")
+
+    list_files, width, height = list_folder_files(src)
+
+    seqencer = Sequence(list_files)
+
+    sequence_format = seqencer.format("%4l %r").split()
+    ## parser.format returns a separated by space string describing the properties of the found sequence
+    ## [0] sequence length
+    ## [1] implied range, start-end
+
+    num_files_in_sequence = int(sequence_format[0])
+    if num_files_in_sequence == 0:
+        logging.error("No sequence found in source folder")
+        raise ValueError("No sequence found")
+
+    confirm_txt = (
+        "Found a sequence of "
+        + str(num_files_in_sequence)
+        + " images "
+        + sequence_format[1]
+        + ". Do you want to proceed?"
+    )
+
+    max_pixel = 0
+    min_pixel = 0
+    histogram = np.zeros((width * height * num_files_in_sequence), dtype=np.uint16)
+    if typer.confirm(confirm_txt, abort=False):
+        images_in_sequence = [None] * num_files_in_sequence
+        bits_per_sample = ""
+        with typer.progressbar(
+            range(num_files_in_sequence), label="Reading images from directory"
+        ) as progress:
+            for slice in progress:
+                file_full_path = list_files[slice]
+                if seqencer.contains(file_full_path):
+                    img = tiff.imread(list_files[slice])
+
+                    ## check all images have the same data type
+                    if bits_per_sample == "":
+                        bits_per_sample = img.dtype
+                        max_pixel = np.iinfo(img.dtype).min
+                        min_pixel = np.iinfo(img.dtype).max
+                    elif bits_per_sample != img.dtype:
+                        raise ValueError(
+                            "image "
+                            + file_full_path
+                            + "has a different sample type "
+                            + bits_per_sample
+                            + " expected: "
+                            + bits_per_sample
+                        )
+                    if img.ndim > 2:
+                        images_in_sequence[slice] = img[channel]
+                    else:
+                        images_in_sequence[slice] = img
+                    max_pixel = (max_pixel, np.max(img))[np.max(img) > max_pixel]
+                    min_pixel = (min_pixel, np.min(img))[np.min(img) < min_pixel]
+
+        logging.info("MAX Value in volume: " + str(max_pixel))
+        logging.info("MIN Value in volume: " + str(min_pixel))
+
+        # convert to 8 bit
+        images_in_sequence_8_bit = [None] * num_files_in_sequence
+        with typer.progressbar(
+            range(num_files_in_sequence), label="Rescaling to 8 bit signal"
+        ) as progress:
+            for slice in progress:
+                _img = images_in_sequence[slice]
+                img_8_bit = np.subtract(_img, min_pixel)
+                img_8_bit = np.true_divide(_img, max_pixel - min_pixel)
+                images_in_sequence_8_bit[slice] = np.multiply(img_8_bit, 255).astype(
+                    np.uint8
+                )
+
+        image_out = build_image_sequence(
+            images_in_sequence_8_bit, width, height, num_files_in_sequence, np.uint8
         )
 
-        name, extension = os.path.splitext(self.dest)
+        name, extension = os.path.splitext(dest)
         if not extension:
             extension = ".png"
 
-        amax = np.amax(image_out)
-        norm = np.zeros((image_out.shape))
-        normalized_image_u16bit = cv2.normalize(
-            image_out, norm, 0, 2 ** 16, cv2.NORM_MINMAX
-        )
-        numpngw.write_png(name + extension, image_out)
-        numpngw.write_png(name + "_normalized" + extension, normalized_image_u16bit)
-
+        # export as single channel image
+        file_name = name + "_chn_" + str(channel) + extension
+        logging.info("##Saving channel " + str(channel) + " Image to: " + file_name)
+        cv2.imwrite(file_name, image_out)
         file = open(name + "_metadata", "a")
         file.write("Width:" + str(width) + "\n")
         file.write("Heigth:" + str(height) + "\n")
-        file.write("Depth:" + str(self.num_imgs) + "\n")
-        file.write("bps:" + str(image_out.dtype) + "\n")
-        file.write("amax:" + str(amax) + "\n")
+        file.write("Depth:" + str(num_files_in_sequence) + "\n")
+        file.write("bps:" + str("uint8") + "\n")
+        file.write("max:" + str(max_pixel) + "\n")
+        file.write("max:" + str(min_pixel) + "\n")
         file.close()
-        print("Image written to file-system : " + name + extension)
-
-    def merge_rgb(self, image_channels, rgb_images, width, height, bits_per_sample):
-        zero_image = np.zeros((width, height), dtype=bits_per_sample)
-        print_progress_bar(
-            0, self.num_imgs, prefix="Mergin channels:", suffix="Complete", length=50
-        )
-        for z in range(self.num_imgs):
-
-            r_channel = np.zeros((width, height), dtype=bits_per_sample)
-            g_channel = np.zeros((width, height), dtype=bits_per_sample)
-            b_channel = np.zeros((width, height), dtype=bits_per_sample)
-            current_image_channels = [r_channel, g_channel, b_channel]
-            ## loop over the channels :  r = 0, g = 1, b =2
-            for i in range(3):
-                current_channel = image_channels[i]
-                if current_channel[z] is not None:
-                    current_image_channels[i] = current_channel[z]
-                    if self.equalize_histogram:
-                        current_image_channels[i] = self.equalize_histogram_method(
-                            current_image_channels[i]
-                        )
-                else:
-                    current_image_channels[i] = zero_image
-
-            merged_image = cv2.merge(current_image_channels)
-
-            if self.gamma:
-                float_gamma = float(self.gamma_val)
-                merged_image = iph.gamma_correction(merged_image, float_gamma)
-            rgb_images[z] = merged_image
-
-            print_progress_bar(
-                z + 1,
-                self.num_imgs,
-                prefix="Mergin channels:",
-                suffix="Complete",
-                length=50,
-            )
-
-    def list_folder_files(self, path_to_foder):
-
-        file_list = []
-        path = path_to_foder
-        intitial_size_call = True
-        width = -1
-        height = -1
-        if os.path.exists(path):
-            for fname in os.listdir(path_to_foder):
-                if (
-                    fname.endswith(".tif")
-                    or fname.endswith(".tiff")
-                    or fname.endswith(".png")
-                ):
-                    file_full_path = os.path.join(path_to_foder, fname)
-                    n_width, n_height = imagesize.get(file_full_path)
-                    if intitial_size_call:
-                        width, height = n_width, n_height
-                        intitial_size_call = False
-                        file_list.append(file_full_path)
-                    elif width == n_width and height == n_height:
-                        file_list.append(file_full_path)
-                    else:
-                        raise (
-                            "image "
-                            + file_full_path
-                            + "has a different size "
-                            + "("
-                            + str(width)
-                            + ","
-                            + str(height)
-                            + ")"
-                        )
-
-        else:
-            print("Folder does not exists")
-
-        return file_list, height, width
-
-
-def main():
-
-    try:
-        # Create argument parser
-        parser = argparse.ArgumentParser()
-        # Add arguments
-        TiffProcessor.add_arguments(parser)
-        args = parser.parse_args()
-        TiffProcessor.configure(args)
-        tiff_processor = TiffProcessor()
-        tiff_processor.convert_to_png()
-    except ValueError:
-        print("Could not convert data to png.")
+        logging.info("Image written to file-system : " + name + extension)
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        app()
+    except ValueError:
+        logging.error("Could not convert data to png.")
