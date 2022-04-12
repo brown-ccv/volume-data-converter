@@ -175,11 +175,11 @@ def convert_to_png(
 
     seqencer = Sequence(list_files)
 
-    sequence_format = seqencer.format("%4l %r").split()
+    sequence_format = seqencer.format("%4l %r %m %R").split()
     ## parser.format returns a separated by space string describing the properties of the found sequence
     ## [0] sequence length
     ## [1] implied range, start-end
-
+    
     num_files_in_sequence = int(sequence_format[0])
     if num_files_in_sequence == 0:
         logging.error("No sequence found in source folder")
