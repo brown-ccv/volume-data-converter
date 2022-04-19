@@ -12,7 +12,6 @@ packages = [
 [tool.poetry.dependencies]
 python = ">=3.7,<3.11"
 opencv-contrib-python = "4.5.4.60"
-black = "^22.3.0"
 tiffile = "^2018.10.18"
 pyseq = "^0.5.5"
 scipy = "1.7.3"
@@ -22,7 +21,7 @@ matplotlib = "^3.5.1"
 
 
 [tool.poetry.dev-dependencies]
-
+black = "^22.3.0"
 
 [tool.poetry.scripts]
 convert2png = "tiff_2_png.tiff_2_png_converter:main"

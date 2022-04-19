@@ -1,5 +1,3 @@
-import argparse
-import sys
 import os
 import cv2
 from cv2 import log
@@ -7,7 +5,7 @@ import numpy as np
 import imagesize
 import math
 import tifffile as tiff
-import image_process_helper as iph
+from tiff_2_png import image_process_helper as iph
 from scipy.interpolate import interp1d
 import logging
 import re
