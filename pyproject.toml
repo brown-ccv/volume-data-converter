@@ -1,9 +1,13 @@
 [tool.poetry]
-name = "tiff-volume-2-png"
+name = "tiff-2-png"
 version = "0.1.0"
-description = "Tool to convert tiff stack of images to a png texture map"
-authors = ["Your Name <you@example.com>"]
-license = "Brown University"
+description = "Tool to convert stack of tiff images to a png texture map"
+authors = ["Camilo Diaz <camilo_diaz@brown.edu>"]
+license = "MIT"
+
+packages = [
+    { include = "tiff_2_png" },
+]
 
 [tool.poetry.dependencies]
 python = ">=3.7,<3.11"
@@ -14,9 +18,14 @@ pyseq = "^0.5.5"
 scipy = "1.7.3"
 typer = "^0.4.1"
 imagesize = "^1.3.0"
+matplotlib = "^3.5.1"
 
 
 [tool.poetry.dev-dependencies]
+
+
+[tool.poetry.scripts]
+convert2png = "tiff_2_png.tiff_2_png_converter:main"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

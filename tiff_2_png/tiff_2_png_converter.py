@@ -7,7 +7,6 @@ import numpy as np
 import imagesize
 import math
 import tifffile as tiff
-import numpngw
 import image_process_helper as iph
 from scipy.interpolate import interp1d
 import logging
@@ -179,7 +178,7 @@ def convert_to_png(
     ## parser.format returns a separated by space string describing the properties of the found sequence
     ## [0] sequence length
     ## [1] implied range, start-end
-    
+
     num_files_in_sequence = int(sequence_format[0])
     if num_files_in_sequence == 0:
         logging.error("No sequence found in source folder")
@@ -266,8 +265,7 @@ def convert_to_png(
         file.close()
         logging.info("Image written to file-system : " + name + extension)
 
-
-if __name__ == "__main__":
+def main():
     try:
         app()
     except ValueError:
