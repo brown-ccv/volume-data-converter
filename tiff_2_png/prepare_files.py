@@ -1,5 +1,4 @@
 import argparse
-import sys
 import os 
 
 def sequence_files(path_to_foder, posfix ="sq", sequence_start = 1):
