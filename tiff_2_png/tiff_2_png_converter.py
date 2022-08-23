@@ -6,15 +6,11 @@ import imagesize
 import math
 import tifffile as tiff
 from tiff_2_png import image_process_helper as iph
-from scipy.interpolate import interp1d
 import logging
-import re
-from collections.abc import Callable
 import matplotlib.pyplot as plt
+import mplhep as hep
 
-from pyseq import Item, Sequence, diff, uncompress, get_sequences
-from pyseq import SequenceError
-import pyseq
+from pyseq import Sequence
 
 import typer
 
@@ -135,8 +131,12 @@ def convert_to_png(
         None,
         help=" Applies gamma correction to the dataset. Set a value > 0. Off by default",
     ),
-    equilize_histogram: str = typer.Option(
+    equalizehistogram: str = typer.Option(
         None, help=" Options: 'opencv' or 'custom' to select implementation"
+    ),
+    histogram: bool = typer.Option(
+        False,
+        help=" Write the histogram of the resulting image in a separate text file",
     ),
 ):
 
@@ -154,16 +154,16 @@ def convert_to_png(
         None. It writes an image in the dest path. An additional meta-file is written with the information of the dataset.
 
     """
-    name, extension = os.path.splitext(dest)
-    if not (os.path.exists(src) and os.path.exists(os.path.dirname(name))):
+    dest_name, extension = os.path.splitext(dest)
+    if not (os.path.exists(src) and os.path.exists(os.path.dirname(dest_name))):
         raise ValueError("ERROR: Verify source and destination paths exists")
 
     equilize_histogram_function = None
 
-    if equilize_histogram is not None:
-        if equilize_histogram == "opencv":
+    if equalizehistogram is not None:
+        if equalizehistogram == "opencv":
             equilize_histogram_function = iph.equalize_image_histogram_opencv
-        elif equilize_histogram == "custom":
+        elif equalizehistogram == "custom":
             equilize_histogram_function = iph.equalize_image_histogram_custom
         else:
             raise ValueError("ERROR: equilize_histogram value is not valid")
@@ -190,9 +190,9 @@ def convert_to_png(
         + ". Do you want to proceed?"
     )
 
-    max_pixel = 0
-    min_pixel = 0
-    histogram = np.zeros((width * height * num_files_in_sequence), dtype=np.uint16)
+    global_max_pixel = 0
+    global_min_pixel = 0
+    # histogram = np.zeros((width * height * num_files_in_sequence), dtype=np.uint16)
     if typer.confirm(confirm_txt, abort=False):
         images_in_sequence = [None] * num_files_in_sequence
         bits_per_sample = ""
@@ -207,8 +207,8 @@ def convert_to_png(
                     ## check all images have the same data type
                     if bits_per_sample == "":
                         bits_per_sample = img.dtype
-                        max_pixel = np.iinfo(img.dtype).min
-                        min_pixel = np.iinfo(img.dtype).max
+                        global_max_pixel = np.iinfo(img.dtype).min
+                        global_min_pixel = np.iinfo(img.dtype).max
                     elif bits_per_sample != img.dtype:
                         raise ValueError(
                             "image "
@@ -222,11 +222,15 @@ def convert_to_png(
                         images_in_sequence[slice] = img[channel]
                     else:
                         images_in_sequence[slice] = img
-                    max_pixel = (max_pixel, np.max(img))[np.max(img) > max_pixel]
-                    min_pixel = (min_pixel, np.min(img))[np.min(img) < min_pixel]
+                    global_max_pixel = (global_max_pixel, np.max(img))[
+                        np.max(img) > global_max_pixel
+                    ]
+                    global_min_pixel = (global_min_pixel, np.min(img))[
+                        np.min(img) < global_min_pixel
+                    ]
 
-        logging.info("MAX Value in volume: " + str(max_pixel))
-        logging.info("MIN Value in volume: " + str(min_pixel))
+        logging.info("MAX Value in volume: " + str(global_max_pixel))
+        logging.info("MIN Value in volume: " + str(global_min_pixel))
 
         # convert to 8 bit
         images_in_sequence_8_bit = [None] * num_files_in_sequence
@@ -235,33 +239,56 @@ def convert_to_png(
         ) as progress:
             for slice in progress:
                 _img = images_in_sequence[slice]
-                img_8_bit = np.subtract(_img, min_pixel)
-                img_8_bit = np.true_divide(_img, max_pixel - min_pixel)
-                images_in_sequence_8_bit[slice] = np.multiply(img_8_bit, 255).astype(
-                    np.uint8
-                )
+                img_8_bit = np.subtract(_img, global_min_pixel)
+                img_8_bit = np.true_divide(_img, global_max_pixel - global_min_pixel)
+                img_8_bit = np.multiply(img_8_bit, 255).astype(np.uint8)
+                if gamma is not None:
+                    img_8_bit = iph.gamma_correction(img_8_bit, gamma)
+                images_in_sequence_8_bit[slice] = img_8_bit
 
         image_out = build_image_sequence(
             images_in_sequence_8_bit, width, height, num_files_in_sequence, np.uint8
         )
 
-        name, extension = os.path.splitext(dest)
+        ## split path to resolve path of multiple files to be written
+        parent_folder = os.path.abspath(os.path.join(dest, os.pardir))
+        file_base_name = os.path.basename(dest)
+        file_name, extension = os.path.splitext(file_base_name)
         if not extension:
             extension = ".png"
 
         # export as single channel image
-        file_name = name + "_chn_" + str(channel) + extension
-        logging.info("##Saving channel " + str(channel) + " Image to: " + file_name)
-        cv2.imwrite(file_name, image_out)
-        file = open(name + "_metadata", "a")
+        file_name = file_name + "_chn_" + str(channel)
+        file_name_full_path = os.path.join(parent_folder, file_name + extension)
+        logging.info(
+            "##Saving channel " + str(channel) + " Image to: " + file_name_full_path
+        )
+        cv2.imwrite(file_name_full_path, image_out)
+        # write metadata file
+        metadata_file_path = os.path.join(parent_folder, file_name + "_metadata")
+        file = open(metadata_file_path, "a")
         file.write("Width:" + str(width) + "\n")
         file.write("Heigth:" + str(height) + "\n")
         file.write("Depth:" + str(num_files_in_sequence) + "\n")
         file.write("bps:" + str("uint8") + "\n")
-        file.write("max:" + str(max_pixel) + "\n")
-        file.write("max:" + str(min_pixel) + "\n")
+        file.write("max:" + str(global_max_pixel) + "\n")
+        file.write("max:" + str(global_min_pixel) + "\n")
         file.close()
-        logging.info("Image written to file-system : " + name + extension)
+        logging.info("Image written to file-system : " + file_base_name)
+
+        if histogram:
+            img_histogram = np.histogram(image_out, bins=255)
+            histogram_file_full_path = os.path.join(
+                parent_folder, file_name + "_Histogram.txt"
+            )
+            np.savetxt(histogram_file_full_path, img_histogram[0], fmt="%u")
+            logging.info(
+                "Histogram written to file-system : " + histogram_file_full_path
+            )
+            hep.histplot(H=img_histogram[0], bins=img_histogram[1])
+            # Wait for all figures to be closed before returning.
+            plt.show(block=True)
+
 
 def main():
     try:
