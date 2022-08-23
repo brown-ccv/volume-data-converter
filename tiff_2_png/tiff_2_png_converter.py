@@ -131,7 +131,7 @@ def convert_to_png(
         None,
         help=" Applies gamma correction to the dataset. Set a value > 0. Off by default",
     ),
-    equalizehistogram: str = typer.Option(
+    equalize_histogram: str = typer.Option(
         None, help=" Options: 'opencv' or 'custom' to select implementation"
     ),
     histogram: bool = typer.Option(
@@ -160,10 +160,10 @@ def convert_to_png(
 
     equilize_histogram_function = None
 
-    if equalizehistogram is not None:
-        if equalizehistogram == "opencv":
+    if equalize_histogram is not None:
+        if equalize_histogram == "opencv":
             equilize_histogram_function = iph.equalize_image_histogram_opencv
-        elif equalizehistogram == "custom":
+        elif equalize_histogram == "custom":
             equilize_histogram_function = iph.equalize_image_histogram_custom
         else:
             raise ValueError("ERROR: equilize_histogram value is not valid")
