@@ -4,6 +4,9 @@ import numpy as np
 import os
 from datetime import datetime, timedelta
 from osom_converter import scoord_du_new2 as scoor_du
+import cv2
+import imageio
+from PIL import Image
 
 app = typer.Typer()
 
@@ -121,6 +124,23 @@ def createOsomData(
 
             ## downscale data
             out_data = out_data[::downscaleFactor, ::downscaleFactor, ::downscaleFactor]
+            slice = np.zeros(shape=(out_data.shape[1],out_data.shape[2]),dtype=np.uint16)
+            slice[:,:] = np.multiply(out_data[26,:,:] , np.iinfo(np.uint16).max).astype(np.uint16)
+            # slice[:,:,1] = 0
+            # slice[:,:,2] = 0
+            #slice[:,:,3] = 255
+            im = Image.fromarray(slice, mode='I;16')
+            print(im.getpixel((194, 83)))  # 44
+            print(im.getpixel((83, 194)))  # 44
+            data_filename = (
+                f"{data_descriptor}_{osom_data_filename}"
+            )
+            tiff_filename = (
+                    f"_{data_filename}_slice{26:0{3}}")
+            tiff_file = os.path.join(output_folder,"tiff_data",tiff_filename+".tif")
+           
+            im.save(tiff_file)
+
             out_dataShape = out_data.shape
             out_data = out_data.reshape(
                 (out_dataShape[2], out_dataShape[1], out_dataShape[0])
@@ -132,10 +152,31 @@ def createOsomData(
                 f"{data_descriptor}_{osom_data_filename}_timestep{time+1:0{digits}}"
             )
 
+            #outData32 = out_data.astype(np.float32)
+            # save to png
+            #png_file = os.path.join(output_f, data_filename + ".tif")
+            # cv2.imwrite(png_file, outData32[:,:,0],cv2.CV_32F)
+
+            data_digits = len(str(np.shape(data)[2] + 1))
+            print(np.shape(data))
+            # for z in range(out_data.shape[2]):
+            #     tiff_filename = (
+            #         f"{data_filename}_slice{z:0{data_digits}}")
+            #     tiff_file = os.path.join(output_folder,"tiff_data",tiff_filename+".tif")
+           
+                # im = Image.fromarray(a, mode="RGB")
+                # im.getpixel((0, 0))  # (44, 1, 0)
+
+                #im.save(tiff_file)
+            #imageio.imwrite(png_file, slice_0)
+            #print(f'wrote: {image.dtype}')
+            #image = imageio.imread(png_file)
+            #print(f'read:  {image.dtype}')
+            #print(f'read:  {image.dtype}')
+
             with open(
                 os.path.join(output_f, data_filename + ".raw"), "wb"
             ) as data_file:
-                outData32 = out_data.astype(np.float32)
                 outData32.tofile(data_file)
 
             ## save description file
@@ -155,6 +196,7 @@ def createOsomData(
                 fprintf(desc_file, "%i\n", datetime.timestamp(current_time))
                 fprintf(desc_file, "%s\n", current_time.strftime("%m/%d/%Y-%H:%M:%S"))
 
-
-def main():
+if __name__ == "__main__":
     app()
+# def main():
+#     app()

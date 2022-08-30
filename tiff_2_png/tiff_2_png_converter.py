@@ -9,6 +9,8 @@ from tiff_2_png import image_process_helper as iph
 import logging
 import matplotlib.pyplot as plt
 import mplhep as hep
+import png as pyong
+import imageio
 
 from pyseq import Sequence
 
@@ -66,7 +68,7 @@ def list_folder_files(path_to_folder: str):
     else:
         logging.error("Folder " + path + " does not exists")
 
-    return file_list, height, width
+    return file_list,width, height
 
 
 def build_image_sequence(
@@ -103,9 +105,10 @@ def build_image_sequence(
             imgs_row = np.zeros((), dtype=img_type)
             for j in range(dim):
                 tmp_img = np.zeros((new_resolution_image), dtype=img_type)
-
+                
                 if count < len(volume) and count <= num_slices:
                     tmp_img = cv2.resize(volume[count], new_resolution_image)
+                    tmp_img = np.transpose(tmp_img)
 
                 image_out[
                     i * new_resolution_image[0] : (i * new_resolution_image[0])
@@ -207,8 +210,12 @@ def convert_to_png(
                     ## check all images have the same data type
                     if bits_per_sample == "":
                         bits_per_sample = img.dtype
-                        global_max_pixel = np.iinfo(img.dtype).min
-                        global_min_pixel = np.iinfo(img.dtype).max
+                        if img.dtype == np.float32:
+                            global_max_pixel = 0.0
+                            global_min_pixel = 1.0
+                        else:        
+                            global_max_pixel = np.iinfo(img.dtype).min
+                            global_min_pixel = np.iinfo(img.dtype).max
                     elif bits_per_sample != img.dtype:
                         raise ValueError(
                             "image "
@@ -233,21 +240,34 @@ def convert_to_png(
         logging.info("MIN Value in volume: " + str(global_min_pixel))
 
         # convert to 8 bit
-        images_in_sequence_8_bit = [None] * num_files_in_sequence
+        images_in_sequence_n_bits = [None] * num_files_in_sequence
+        max_per_sample = np.iinfo(np.uint8).max
+        
         with typer.progressbar(
             range(num_files_in_sequence), label="Rescaling to 8 bit signal"
         ) as progress:
             for slice in progress:
-                _img = images_in_sequence[slice]
-                img_8_bit = np.subtract(_img, global_min_pixel)
-                img_8_bit = np.true_divide(_img, global_max_pixel - global_min_pixel)
-                img_8_bit = np.multiply(img_8_bit, 255).astype(np.uint8)
-                if gamma is not None:
-                    img_8_bit = iph.gamma_correction(img_8_bit, gamma)
-                images_in_sequence_8_bit[slice] = img_8_bit
+                
+                if bits_per_sample == np.uint16:
+                    _img_16_bit = images_in_sequence[slice]
+                    max_per_sample = np.iinfo(np.uint16).max
+                    if gamma is not None:
+                        _img_16_bit = iph.gamma_correction(_img_16_bit, gamma)
+                    images_in_sequence_n_bits[slice] = _img_16_bit
+
+                elif bits_per_sample != np.float32:
+                    _img_8_bit = images_in_sequence[slice]
+                    img_8_bit = np.subtract(_img_8_bit, global_min_pixel)
+                    img_8_bit = np.true_divide(img_8_bit, global_max_pixel - global_min_pixel)
+                    img_8_bit = np.multiply(img_8_bit, max_per_sample).astype(np.uint8)
+                    if gamma is not None:
+                        img_8_bit = iph.gamma_correction(img_8_bit, gamma)
+                        images_in_sequence_n_bits[slice] = img_8_bit
+
+                
 
         image_out = build_image_sequence(
-            images_in_sequence_8_bit, width, height, num_files_in_sequence, np.uint8
+            images_in_sequence_n_bits, width, height, num_files_in_sequence, np.uint16
         )
 
         ## split path to resolve path of multiple files to be written
@@ -289,9 +309,11 @@ def convert_to_png(
             # Wait for all figures to be closed before returning.
             plt.show(block=True)
 
+if __name__ == "__main__":
+    app()
 
-def main():
-    try:
-        app()
-    except ValueError:
-        logging.error("Could not convert data to png.")
+# def main():
+#     try:
+#         app()
+#     except ValueError:
+#         logging.error("Could not convert data to png.")
