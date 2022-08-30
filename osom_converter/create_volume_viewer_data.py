@@ -4,7 +4,7 @@ import numpy as np
 import os
 from datetime import datetime, timedelta
 from osom_converter import scoord_du_new2 as scoor_du
-
+from typing import List,Optional
 app = typer.Typer()
 
 
@@ -18,8 +18,8 @@ def createOsomData(
     osom_data_file: str  = typer.Argument(..., help="NC file osom data"),
     output_folder: str  = typer.Argument(..., help="Location where the resuilting .raw files will be saved"),
     data_descriptor: str  = typer.Argument(..., help="Descriptor to query the nc file"),
-    time_frames: list = typer.Option(
-        None,
+    time_frames: List[int] = typer.Option(
+        [],
         help=" List of frames to convert to raw. By default is None and it will convert all the time frames in a .nc file",
     ),
 ):
@@ -100,8 +100,10 @@ def createOsomData(
     start_time = datetime.strptime("2006-01-01 00:00:00", "%Y-%m-%d %H:%M:%S")
 
     time_range = np.shape(data)[0]
-    if time_frames is not None:
+    query_time_frames = False
+    if len(time_frames) > 0:
         time_range = len(time_frames)
+        query_time_frames = True
 
     typer.echo(" Converting nc data to raw and desc files. This process will take time")
     
@@ -109,11 +111,12 @@ def createOsomData(
         range(time_range), label="Processing Time"
     ) as time_progress:
         for time in time_progress:
-            if time_frames is not None:
-                time_t = time_frames[time]
+            time_t = time
+            if query_time_frames:
+                time_t = time_frames[time]   
             # intiialize with zero
             out_data = np.zeros((slices, np.shape(x_rho)[0], np.shape(x_rho)[1]))
-            progress_bar_label = "Processing Time Step " + str(time_t + 1)
+            progress_bar_label = "Processing Time Step " + str(time_t)
             with typer.progressbar(
                 range(np.shape(x_rho)[0]), label=progress_bar_label
             ) as gridx_progress:
@@ -143,7 +146,7 @@ def createOsomData(
             digits = len(str(np.shape(data)[0] + 1))
             ## save data file
             data_filename = (
-                f"{data_descriptor}_{osom_data_filename}_timestep{time_t+1:0{digits}}"
+                f"{data_descriptor}_{osom_data_filename}_timestep{time_t:0{digits}}"
             )
 
             with open(
