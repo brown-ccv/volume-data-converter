@@ -14,11 +14,18 @@ def fprintf(stream, format_spec, *args):
 
 @app.command()
 def createOsomData(
-    osom_gridfile: str, osom_data_file: str, output_folder: str, data_descriptor: str
+    osom_gridfile: str  = typer.Argument(..., help="Grid File with space coordinates"),
+    osom_data_file: str  = typer.Argument(..., help="NC file osom data"),
+    output_folder: str  = typer.Argument(..., help="Location where the resuilting .raw files will be saved"),
+    data_descriptor: str  = typer.Argument(..., help="Descriptor to query the nc file"),
+    time_frames: list = typer.Option(
+        None,
+        help=" List of frames to convert to raw. By default is None and it will convert all the time frames in a .nc file",
+    ),
 ):
 
     """
-    Converts NETCDF files (*.nc) form the osom model to data files that can be read
+    Converts NETCDF files (*.nc) from the osom model to data files that can be read
     in the volume viewer desktop app
 
     osom_gridfile: grid file providing uv transformation coordinates ( i.e: file provided by this tool osom_grid4_mindep_smlp_mod7.nc)
@@ -92,21 +99,28 @@ def createOsomData(
 
     start_time = datetime.strptime("2006-01-01 00:00:00", "%Y-%m-%d %H:%M:%S")
 
+    time_range = np.shape(data)[0]
+    if time_frames is not None:
+        time_range = len(time_frames)
+
     typer.echo(" Converting nc data to raw and desc files. This process will take time")
+    
     with typer.progressbar(
-        range(np.shape(data)[0]), label="Processing Time"
+        range(time_range), label="Processing Time"
     ) as time_progress:
         for time in time_progress:
+            if time_frames is not None:
+                time_t = time_frames[time]
             # intiialize with zero
             out_data = np.zeros((slices, np.shape(x_rho)[0], np.shape(x_rho)[1]))
-            progress_bar_label = "Processing Time Step " + str(time + 1)
+            progress_bar_label = "Processing Time Step " + str(time_t + 1)
             with typer.progressbar(
                 range(np.shape(x_rho)[0]), label=progress_bar_label
             ) as gridx_progress:
                 for x in gridx_progress:
                     for y in range(np.shape(x_rho)[1]):
                         # get depth column
-                        t_data = data[time, :, x, y]
+                        t_data = data[time_t, :, x, y]
                         t_data = np.ma.squeeze(t_data)
                         idx = ~t_data.mask
                         if np.sum(idx.astype(int)) > 0:
@@ -129,7 +143,7 @@ def createOsomData(
             digits = len(str(np.shape(data)[0] + 1))
             ## save data file
             data_filename = (
-                f"{data_descriptor}_{osom_data_filename}_timestep{time+1:0{digits}}"
+                f"{data_descriptor}_{osom_data_filename}_timestep{time_t+1:0{digits}}"
             )
 
             with open(
@@ -151,10 +165,12 @@ def createOsomData(
                     min_data,
                     max_data,
                 )
-                current_time = start_time + timedelta(0, ocean_time[time])
+                current_time = start_time + timedelta(0, ocean_time[time_t])
                 fprintf(desc_file, "%i\n", datetime.timestamp(current_time))
                 fprintf(desc_file, "%s\n", current_time.strftime("%m/%d/%Y-%H:%M:%S"))
 
-
-def main():
+if __name__ == "__main__":
     app()
+
+# def main():
+#     app()

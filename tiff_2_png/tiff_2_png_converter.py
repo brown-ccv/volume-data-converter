@@ -229,8 +229,8 @@ def convert_to_png(
                         np.min(img) < global_min_pixel
                     ]
 
-        logging.info("MAX Value in volume: " + str(global_max_pixel))
-        logging.info("MIN Value in volume: " + str(global_min_pixel))
+        logging.info(f"MAX Value in volume: {global_max_pixel}")
+        logging.info(f"MIN Value in volume: {global_min_pixel}")
 
         # convert to 8 bit
         images_in_sequence_8_bit = [None] * num_files_in_sequence
