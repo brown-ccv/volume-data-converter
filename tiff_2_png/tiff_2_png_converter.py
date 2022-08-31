@@ -124,8 +124,7 @@ def convert_to_png(
     src: str = typer.Argument(..., help="Path to source folder"),
     dest: str = typer.Argument(..., help="Path where png will be saved"),
     channel: int = typer.Option(
-        0,
-        help=" Channel of the data to export as single png",
+        0, help=" Channel of the data to export as single png",
     ),
     gamma: float = typer.Option(
         None,
@@ -256,9 +255,7 @@ def convert_to_png(
         # export as single channel image
         file_name = file_name + "_chn_" + str(channel)
         file_name_full_path = os.path.join(parent_folder, file_name + extension)
-        logging.info(
-            f"##Saving channel {channel} image to: {file_name_full_path}"
-        )
+        logging.info(f"##Saving channel {channel} image to: {file_name_full_path}")
         cv2.imwrite(file_name_full_path, image_out)
         # write metadata file
         metadata_file_path = os.path.join(parent_folder, file_name + "_metadata")
@@ -284,6 +281,7 @@ def convert_to_png(
             hep.histplot(H=img_histogram[0], bins=img_histogram[1])
             # Wait for all figures to be closed before returning.
             plt.show(block=True)
+
 
 def main():
     try:

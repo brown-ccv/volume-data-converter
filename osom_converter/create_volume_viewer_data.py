@@ -9,16 +9,19 @@ from typing import List
 
 app = typer.Typer()
 
+
 def fprintf(stream, format_spec, *args):
     stream.write(format_spec % args)
 
 
 @app.command()
 def createOsomData(
-    osom_gridfile: str  = typer.Argument(..., help="Grid File with space coordinates"),
-    osom_data_file: str  = typer.Argument(..., help="NC file osom data"),
-    output_folder: str  = typer.Argument(..., help="Location where the resuilting .raw files will be saved"),
-    data_descriptor: str  = typer.Argument(..., help="Descriptor to query the nc file"),
+    osom_gridfile: str = typer.Argument(..., help="Grid File with space coordinates"),
+    osom_data_file: str = typer.Argument(..., help="NC file osom data"),
+    output_folder: str = typer.Argument(
+        ..., help="Location where the resuilting .raw files will be saved"
+    ),
+    data_descriptor: str = typer.Argument(..., help="Descriptor to query the nc file"),
     time_frames: List[int] = typer.Option(
         [],
         help=" List of time frames to convert to raw. By default is None: it will convert all the time frames in a .nc file",
@@ -60,7 +63,7 @@ def createOsomData(
     hc = nc_dataFile.variables["hc"][:]
     ocean_time = nc_dataFile.variables["ocean_time"][:]
     ocean_time_properties = nc_dataFile.variables["ocean_time"]
-    
+
     # Compute and plot ROMS vertical stretched coordinates
     typer.echo(" Computing ROMS vertical stretched coordinates")
     z, s, C = scoor_du.scoord_du_new2(
@@ -97,11 +100,9 @@ def createOsomData(
 
     if len(time_frames) == 0:
         time_frames = np.arange(np.shape(data)[0]).tolist()
-        
+
     typer.echo(" Converting nc data to raw and desc files. This process will take time")
-    with typer.progressbar(
-        time_frames, label="Processing Time"
-    ) as time_progress:
+    with typer.progressbar(time_frames, label="Processing Time") as time_progress:
         for time_t in time_progress:
             # intiialize with zero
             out_data = np.zeros((slices, np.shape(x_rho)[0], np.shape(x_rho)[1]))
@@ -157,9 +158,14 @@ def createOsomData(
                     min_data,
                     max_data,
                 )
-                ocean_times = netcdftime.num2date(ocean_time[time_t],units = ocean_time_properties.units,calendar = ocean_time_properties.calendar)
+                ocean_times = netcdftime.num2date(
+                    ocean_time[time_t],
+                    units=ocean_time_properties.units,
+                    calendar=ocean_time_properties.calendar,
+                )
                 fprintf(desc_file, "%s\n", ocean_times.strftime("%Y-%m-%d %H:%M:%S"))
     typer.echo(" End of process")
+
 
 if __name__ == "__main__":
     app()
