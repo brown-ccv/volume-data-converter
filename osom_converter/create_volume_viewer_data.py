@@ -1,12 +1,13 @@
 from netCDF4 import Dataset
+import netcdftime
 import typer
 import numpy as np
 import os
-from datetime import datetime, timedelta
 from osom_converter import scoord_du_new2 as scoor_du
-from typing import List,Optional
-app = typer.Typer()
+from typing import List
 
+
+app = typer.Typer()
 
 def fprintf(stream, format_spec, *args):
     stream.write(format_spec % args)
@@ -20,7 +21,7 @@ def createOsomData(
     data_descriptor: str  = typer.Argument(..., help="Descriptor to query the nc file"),
     time_frames: List[int] = typer.Option(
         [],
-        help=" List of frames to convert to raw. By default is None and it will convert all the time frames in a .nc file",
+        help=" List of time frames to convert to raw. By default is None: it will convert all the time frames in a .nc file",
     ),
 ):
 
@@ -58,7 +59,8 @@ def createOsomData(
     theta_b = nc_dataFile.variables["theta_b"][:]
     hc = nc_dataFile.variables["hc"][:]
     ocean_time = nc_dataFile.variables["ocean_time"][:]
-
+    ocean_time_properties = nc_dataFile.variables["ocean_time"]
+    
     # Compute and plot ROMS vertical stretched coordinates
     typer.echo(" Computing ROMS vertical stretched coordinates")
     z, s, C = scoor_du.scoord_du_new2(
@@ -93,27 +95,14 @@ def createOsomData(
     if not os.path.exists(output_folder):
         os.mkdir(output_folder)
 
-    output_f = os.path.join(output_folder, "data")
-    if not os.path.exists(output_f):
-        os.mkdir(output_f)
-
-    start_time = datetime.strptime("2006-01-01 00:00:00", "%Y-%m-%d %H:%M:%S")
-
-    time_range = np.shape(data)[0]
-    query_time_frames = False
-    if len(time_frames) > 0:
-        time_range = len(time_frames)
-        query_time_frames = True
-
+    if len(time_frames) == 0:
+        time_frames = np.arange(np.shape(data)[0]).tolist()
+        
     typer.echo(" Converting nc data to raw and desc files. This process will take time")
-    
     with typer.progressbar(
-        range(time_range), label="Processing Time"
+        time_frames, label="Processing Time"
     ) as time_progress:
-        for time in time_progress:
-            time_t = time
-            if query_time_frames:
-                time_t = time_frames[time]   
+        for time_t in time_progress:
             # intiialize with zero
             out_data = np.zeros((slices, np.shape(x_rho)[0], np.shape(x_rho)[1]))
             progress_bar_label = "Processing Time Step " + str(time_t)
@@ -150,14 +139,14 @@ def createOsomData(
             )
 
             with open(
-                os.path.join(output_f, data_filename + ".raw"), "wb"
+                os.path.join(output_folder, data_filename + ".raw"), "wb"
             ) as data_file:
                 outData32 = out_data.astype(np.float32)
                 outData32.tofile(data_file)
 
             ## save description file
             with open(
-                os.path.join(output_f, data_filename + ".desc"), "w"
+                os.path.join(output_folder, data_filename + ".desc"), "w"
             ) as desc_file:
                 fprintf(
                     desc_file,
@@ -168,9 +157,9 @@ def createOsomData(
                     min_data,
                     max_data,
                 )
-                current_time = start_time + timedelta(0, ocean_time[time_t])
-                fprintf(desc_file, "%i\n", datetime.timestamp(current_time))
-                fprintf(desc_file, "%s\n", current_time.strftime("%m/%d/%Y-%H:%M:%S"))
+                ocean_times = netcdftime.num2date(ocean_time[time_t],units = ocean_time_properties.units,calendar = ocean_time_properties.calendar)
+                fprintf(desc_file, "%s\n", ocean_times.strftime("%Y-%m-%d %H:%M:%S"))
+    typer.echo(" End of process")
 
 if __name__ == "__main__":
     app()

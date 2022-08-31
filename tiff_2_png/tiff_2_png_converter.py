@@ -222,12 +222,8 @@ def convert_to_png(
                         images_in_sequence[slice] = img[channel]
                     else:
                         images_in_sequence[slice] = img
-                    global_max_pixel = (global_max_pixel, np.max(img))[
-                        np.max(img) > global_max_pixel
-                    ]
-                    global_min_pixel = (global_min_pixel, np.min(img))[
-                        np.min(img) < global_min_pixel
-                    ]
+                    global_max_pixel = max(global_max_pixel, np.max(img))
+                    global_min_pixel = min(global_min_pixel, np.min(img))
 
         logging.info(f"MAX Value in volume: {global_max_pixel}")
         logging.info(f"MIN Value in volume: {global_min_pixel}")
@@ -261,7 +257,7 @@ def convert_to_png(
         file_name = file_name + "_chn_" + str(channel)
         file_name_full_path = os.path.join(parent_folder, file_name + extension)
         logging.info(
-            "##Saving channel " + str(channel) + " Image to: " + file_name_full_path
+            f"##Saving channel {channel} image to: {file_name_full_path}"
         )
         cv2.imwrite(file_name_full_path, image_out)
         # write metadata file
@@ -288,7 +284,6 @@ def convert_to_png(
             hep.histplot(H=img_histogram[0], bins=img_histogram[1])
             # Wait for all figures to be closed before returning.
             plt.show(block=True)
-
 
 def main():
     try:
