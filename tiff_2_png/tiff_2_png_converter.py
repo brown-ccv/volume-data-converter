@@ -189,8 +189,8 @@ def convert_to_png(
         + ". Do you want to proceed?"
     )
 
-    global_max_pixel = 0
-    global_min_pixel = 0
+    global_max_pixel = np.iinfo(img.dtype).min
+    global_min_pixel = np.iinfo(img.dtype).max
     # histogram = np.zeros((width * height * num_files_in_sequence), dtype=np.uint16)
     if typer.confirm(confirm_txt, abort=False):
         images_in_sequence = [None] * num_files_in_sequence
@@ -206,8 +206,8 @@ def convert_to_png(
                     ## check all images have the same data type
                     if bits_per_sample == "":
                         bits_per_sample = img.dtype
-                        global_max_pixel = np.iinfo(img.dtype).min
-                        global_min_pixel = np.iinfo(img.dtype).max
+                        global_max_pixel = np.max(img)
+                        global_min_pixel = np.min(img)
                     elif bits_per_sample != img.dtype:
                         raise ValueError(
                             "image "
@@ -253,7 +253,7 @@ def convert_to_png(
             extension = ".png"
 
         # export as single channel image
-        file_name = file_name + "_chn_" + str(channel)
+        file_name = f"{file_name}_chn_{channel}"
         file_name_full_path = os.path.join(parent_folder, file_name + extension)
         logging.info(f"##Saving channel {channel} image to: {file_name_full_path}")
         cv2.imwrite(file_name_full_path, image_out)
