@@ -7,6 +7,7 @@ license = "MIT"
 
 packages = [
     { include = "tiff_2_png" },
+    { include = "osom_converter" },
 ]
 
 [tool.poetry.dependencies]
@@ -18,6 +19,9 @@ scipy = "1.7.3"
 typer = "^0.4.1"
 imagesize = "^1.3.0"
 matplotlib = "^3.5.1"
+netCDF4 = "1.5.7"
+mplhep = "^0.3.26"
+netcdftime = "^1.0.0-alpha.2"
 
 
 [tool.poetry.dev-dependencies]
@@ -25,6 +29,8 @@ black = "^22.3.0"
 
 [tool.poetry.scripts]
 convert2png = "tiff_2_png.tiff_2_png_converter:main"
+osom-converter = "osom_converter.create_volume_viewer_data:main"
+
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

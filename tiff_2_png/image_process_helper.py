@@ -5,7 +5,7 @@ import cv2
 def gamma_correction(img: np.ndarray, gamma: float = 1.0):
     """
     Custom Implementation of gamma correction to process luminance on images
-    
+
     """
     img_dtype = img.dtype
     igamma = 1.0 / gamma
@@ -42,11 +42,15 @@ def equalize_image_histogram_custom(img_array):
     Experimentally, this method brights up the image more that the opencv implementation.
     """
     img_dtype = img_array.dtype
-    histogram_array = np.bincount(img_array.flatten(), minlength=256)
+    histogram_array = np.bincount(
+        img_array.flatten(), minlength=np.iinfo(img_dtype).max
+    )
     num_pixels = np.sum(histogram_array)
     histogram_array = histogram_array / num_pixels
     chistogram_array = np.cumsum(histogram_array)
-    transform_map = np.floor(255 * chistogram_array).astype(np.uint8)
+    transform_map = np.floor(np.iinfo(img_dtype).max * chistogram_array).astype(
+        np.uint8
+    )
     img_list = list(img_array.flatten())
     eq_img_list = [transform_map[p] for p in img_list]
     eq_img_array = np.reshape(np.asarray(eq_img_list), img_array.shape)
