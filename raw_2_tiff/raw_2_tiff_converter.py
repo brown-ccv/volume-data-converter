@@ -13,12 +13,18 @@ app = typer.Typer()
 def raw_to_tiff(
     src: str = typer.Argument(..., help="Path to source raw file"),
     dest: str = typer.Argument(..., help="Path to Folder where tiffs will be saved"),
-    width: int = typer.Argument(..., help="Path to Folder where tiffs will be saved"),
-    height: int = typer.Argument(..., help="Path to Folder where tiffs will be saved"),
-    depth: int = typer.Argument(..., help="Path to Folder where tiffs will be saved"),
+    width: int = typer.Argument(
+        ..., help="Size of the second dimension of the binary 3D array"
+    ),
+    height: int = typer.Argument(
+        ..., help="Size of the third dimension of the binary 3D array"
+    ),
+    depth: int = typer.Argument(
+        ..., help="Size of first dimension of the binary 3D array"
+    ),
     bit_depth: str = typer.Option(
         "8bit",
-        help=" The data type and bits per pixel of the output image. 8-bit pixel by default",
+        help=" The data type and bits per pixel of the output image. 8bit (default) or 16bit",
     ),
 ):
     """
@@ -27,18 +33,25 @@ def raw_to_tiff(
     Parameters:
                 src (int): Path to binary raw file
                 dest (int): Path to the folder of the resulting sequence of images
-                width (int): size of the second dimension of the binary 3D array
-                height (int): size of the third dimension of the binary 3D array
-                depth (int): size of first dimension of the binary 3D array
-                bit_depth (int): Optional - Data type and number of bits per pixel of the output sequence of images (8-bit by default)
+                width (int): Size of the second dimension of the binary 3D array
+                height (int): Size of the third dimension of the binary 3D array
+                depth (int): Size of first dimension of the binary 3D array
+                bit_depth (int): Optional - Data type and number of bits per pixel of the output sequence of images 
+                Options:
+                    8bit (default)
+                    16bit
 
     Returns:
         None. It writes a sequence of images in the dest path.
 
     """
 
-    if not (os.path.exists(src) and os.path.exists(os.path.dirname(dest))):
-        raise ValueError("ERROR: Verify source and destination paths exists")
+    if not os.path.exists(src):
+        raise ValueError(f"ERROR: Verify source path exists:\n{src}")
+    if not os.path.exists(os.path.dirname(dest)):
+        raise ValueError(
+            f"ERROR: Verify destination path exists:\n{os.path.dirname(dest)}"
+        )
 
     # By default we use 8-bit. Check if we need to change this setting
     output_bit_depth = np.uint8
