@@ -258,6 +258,7 @@ def convert_to_png(
                     img_n_bits = np.subtract(img_n_bits, global_min_pixel)
                     img_n_bits = np.true_divide(img_n_bits, global_max_pixel - global_min_pixel)
                     img_n_bits = np.multiply(img_n_bits, 255).astype(np.uint8)
+                    bits_per_sample = np.uint8
 
                 if gamma is not None:
                     img_n_bits = iph.gamma_correction(img_n_bits, gamma)
