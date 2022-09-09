@@ -127,8 +127,7 @@ def convert_to_png(
     src: str = typer.Argument(..., help="Path to source folder"),
     dest: str = typer.Argument(..., help="Path where png will be saved"),
     channel: int = typer.Option(
-        0,
-        help=" Channel of the data to export as single png",
+        0, help=" Channel of the data to export as single png",
     ),
     gamma: float = typer.Option(
         None,
@@ -141,6 +140,10 @@ def convert_to_png(
         False,
         help=" Write the histogram of the resulting image in a separate text file",
     ),
+    scale_to_8_bit: bool = typer.Option(
+        True,
+        help=" Write the histogram of the resulting image in a separate text file",
+    ),
 ):
 
     """
@@ -150,13 +153,14 @@ def convert_to_png(
     Parameters:
                 src (int): Path to tiff stack root folder
                 dest (int): Path + filename of the resulting 2D texture map.
-        channel (int): On multi channel of the images (i.e rgb), the specific
+                channel (int): On multi channel of the images (i.e rgb), the specific
                        channel to read from. If the image only has 1 channel it reads from channel 0.
 
     Returns:
         None. It writes an image in the dest path. An additional meta-file is written with the information of the dataset.
 
     """
+
     dest_name, extension = os.path.splitext(dest)
     if not (os.path.exists(src) and os.path.exists(os.path.dirname(dest_name))):
         raise ValueError("ERROR: Verify source and destination paths exists")
@@ -195,7 +199,7 @@ def convert_to_png(
 
     global_max_pixel = 0
     global_min_pixel = 0
-    # histogram = np.zeros((width * height * num_files_in_sequence), dtype=np.uint16)
+    
     if typer.confirm(confirm_txt, abort=False):
         images_in_sequence = [None] * num_files_in_sequence
         bits_per_sample = ""
@@ -214,8 +218,9 @@ def convert_to_png(
                             global_max_pixel = 0.0
                             global_min_pixel = 1.0
                         else:        
-                            global_max_pixel = np.iinfo(img.dtype).min
-                            global_min_pixel = np.iinfo(img.dtype).max
+                            global_max_pixel = np.max(img)
+                            global_min_pixel = np.min(img)
+
                     elif bits_per_sample != img.dtype:
                         raise ValueError(
                             "image "
@@ -229,45 +234,41 @@ def convert_to_png(
                         images_in_sequence[slice] = img[channel]
                     else:
                         images_in_sequence[slice] = img
-                    global_max_pixel = (global_max_pixel, np.max(img))[
-                        np.max(img) > global_max_pixel
-                    ]
-                    global_min_pixel = (global_min_pixel, np.min(img))[
-                        np.min(img) < global_min_pixel
-                    ]
+                    global_max_pixel = max(global_max_pixel, np.max(img))
+                    global_min_pixel = min(global_min_pixel, np.min(img))
 
-        logging.info("MAX Value in volume: " + str(global_max_pixel))
-        logging.info("MIN Value in volume: " + str(global_min_pixel))
+        logging.info(f"MAX Value in volume: {global_max_pixel}")
+        logging.info(f"MIN Value in volume: {global_min_pixel}")
 
         # convert to 8 bit
         images_in_sequence_n_bits = [None] * num_files_in_sequence
-        max_per_sample = np.iinfo(np.uint8).max
+            
+        label_bit_text = ("16","8")[scale_to_8_bit == True] 
         
         with typer.progressbar(
-            range(num_files_in_sequence), label="Rescaling to 8 bit signal"
+            range(num_files_in_sequence), label=f"Rescaling to {label_bit_text} bit signal"
         ) as progress:
             for slice in progress:
                 
                 if bits_per_sample == np.uint16:
-                    _img_16_bit = images_in_sequence[slice]
-                    max_per_sample = np.iinfo(np.uint16).max
-                    if gamma is not None:
-                        _img_16_bit = iph.gamma_correction(_img_16_bit, gamma)
-                    images_in_sequence_n_bits[slice] = _img_16_bit
-
-                elif bits_per_sample != np.float32:
-                    _img_8_bit = images_in_sequence[slice]
-                    img_8_bit = np.subtract(_img_8_bit, global_min_pixel)
-                    img_8_bit = np.true_divide(img_8_bit, global_max_pixel - global_min_pixel)
-                    img_8_bit = np.multiply(img_8_bit, max_per_sample).astype(np.uint8)
+                    img_16_bit = images_in_sequence[slice]
+                    if scale_to_8_bit:
+                        global_scale = float(global_max_pixel - global_min_pixel)
+                        scale = 255.0 / global_scale
+                        byte_data = (img_16_bit - global_min_pixel) * scale 
+                        img_8_bit = (byte_data.clip(0, 255) + 0.5).astype(np.uint8)
+                        images_in_sequence_n_bits[slice] = img_8_bit
+                    else:
+                        images_in_sequence_n_bits[slice] = img_16_bit
+                else:
+                    img_8_bit = images_in_sequence[slice]
                     if gamma is not None:
                         img_8_bit = iph.gamma_correction(img_8_bit, gamma)
-                        images_in_sequence_n_bits[slice] = img_8_bit
+                    images_in_sequence_n_bits[slice] = img_8_bit
 
-                
-
+            
         image_out = build_image_sequence(
-            images_in_sequence_n_bits, width, height, num_files_in_sequence, np.uint16
+            images_in_sequence_n_bits, width, height, num_files_in_sequence,bits_per_sample
         )
 
         ## split path to resolve path of multiple files to be written
@@ -278,11 +279,9 @@ def convert_to_png(
             extension = ".png"
 
         # export as single channel image
-        file_name = file_name + "_chn_" + str(channel)
+        file_name = f"{file_name}_chn_{channel}"
         file_name_full_path = os.path.join(parent_folder, file_name + extension)
-        logging.info(
-            "##Saving channel " + str(channel) + " Image to: " + file_name_full_path
-        )
+        logging.info(f"##Saving channel {channel} image to: {file_name_full_path}")
         cv2.imwrite(file_name_full_path, image_out)
         # write metadata file
         metadata_file_path = os.path.join(parent_folder, file_name + "_metadata")
@@ -309,11 +308,8 @@ def convert_to_png(
             # Wait for all figures to be closed before returning.
             plt.show(block=True)
 
-if __name__ == "__main__":
-    app()
-
-# def main():
-#     try:
-#         app()
-#     except ValueError:
-#         logging.error("Could not convert data to png.")
+def main():
+    try:
+        app()
+    except ValueError:
+        logging.error("Could not convert data to png.")

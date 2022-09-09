@@ -1,12 +1,11 @@
 from netCDF4 import Dataset
+import netcdftime
 import typer
 import numpy as np
 import os
-from datetime import datetime, timedelta
 from osom_converter import scoord_du_new2 as scoor_du
-import cv2
-import imageio
-from PIL import Image
+from typing import List
+
 
 app = typer.Typer()
 
@@ -17,18 +16,25 @@ def fprintf(stream, format_spec, *args):
 
 @app.command()
 def createOsomData(
-    osom_gridfile: str, osom_data_file: str, output_folder: str, data_descriptor: str
+    osom_gridfile: str = typer.Argument(..., help="Grid File with space coordinates"),
+    osom_data_file: str = typer.Argument(..., help="NC file osom data"),
+    output_folder: str = typer.Argument(
+        ..., help="Location where the resuilting .raw files will be saved"
+    ),
+    data_descriptor: str = typer.Argument(..., help="Descriptor to query the nc file"),
+    time_frames: List[int] = typer.Option(
+        [],
+        help=" List of time frames to convert to raw. By default is None: it will convert all the time frames in a .nc file",
+    ),
 ):
 
     """
-    Converts NETCDF files (*.nc) form the osom model to data files that can be read
+    Converts NETCDF files (*.nc) from the osom model to data files that can be read
     in the volume viewer desktop app
-
     osom_gridfile: grid file providing uv transformation coordinates ( i.e: file provided by this tool osom_grid4_mindep_smlp_mod7.nc)
     osom_data_file: osom data file with multi-variable data
     output_folder: location where the resulting data will be saved
     data_descriptor: variable to extract from the osom data file (temp, salt)
-
     """
     # Default factors/scalers
     verticalLevels = 15
@@ -54,6 +60,7 @@ def createOsomData(
     theta_b = nc_dataFile.variables["theta_b"][:]
     hc = nc_dataFile.variables["hc"][:]
     ocean_time = nc_dataFile.variables["ocean_time"][:]
+    ocean_time_properties = nc_dataFile.variables["ocean_time"]
 
     # Compute and plot ROMS vertical stretched coordinates
     typer.echo(" Computing ROMS vertical stretched coordinates")
@@ -89,27 +96,22 @@ def createOsomData(
     if not os.path.exists(output_folder):
         os.mkdir(output_folder)
 
-    output_f = os.path.join(output_folder, "data")
-    if not os.path.exists(output_f):
-        os.mkdir(output_f)
-
-    start_time = datetime.strptime("2006-01-01 00:00:00", "%Y-%m-%d %H:%M:%S")
+    if len(time_frames) == 0:
+        time_frames = np.arange(np.shape(data)[0]).tolist()
 
     typer.echo(" Converting nc data to raw and desc files. This process will take time")
-    with typer.progressbar(
-        range(np.shape(data)[0]), label="Processing Time"
-    ) as time_progress:
-        for time in time_progress:
+    with typer.progressbar(time_frames, label="Processing Time") as time_progress:
+        for time_t in time_progress:
             # intiialize with zero
             out_data = np.zeros((slices, np.shape(x_rho)[0], np.shape(x_rho)[1]))
-            progress_bar_label = "Processing Time Step " + str(time + 1)
+            progress_bar_label = "Processing Time Step " + str(time_t)
             with typer.progressbar(
                 range(np.shape(x_rho)[0]), label=progress_bar_label
             ) as gridx_progress:
                 for x in gridx_progress:
                     for y in range(np.shape(x_rho)[1]):
                         # get depth column
-                        t_data = data[time, :, x, y]
+                        t_data = data[time_t, :, x, y]
                         t_data = np.ma.squeeze(t_data)
                         idx = ~t_data.mask
                         if np.sum(idx.astype(int)) > 0:
@@ -124,23 +126,6 @@ def createOsomData(
 
             ## downscale data
             out_data = out_data[::downscaleFactor, ::downscaleFactor, ::downscaleFactor]
-            slice = np.zeros(shape=(out_data.shape[1],out_data.shape[2]),dtype=np.uint16)
-            slice[:,:] = np.multiply(out_data[26,:,:] , np.iinfo(np.uint16).max).astype(np.uint16)
-            # slice[:,:,1] = 0
-            # slice[:,:,2] = 0
-            #slice[:,:,3] = 255
-            im = Image.fromarray(slice, mode='I;16')
-            print(im.getpixel((194, 83)))  # 44
-            print(im.getpixel((83, 194)))  # 44
-            data_filename = (
-                f"{data_descriptor}_{osom_data_filename}"
-            )
-            tiff_filename = (
-                    f"_{data_filename}_slice{26:0{3}}")
-            tiff_file = os.path.join(output_folder,"tiff_data",tiff_filename+".tif")
-           
-            im.save(tiff_file)
-
             out_dataShape = out_data.shape
             out_data = out_data.reshape(
                 (out_dataShape[2], out_dataShape[1], out_dataShape[0])
@@ -149,39 +134,18 @@ def createOsomData(
             digits = len(str(np.shape(data)[0] + 1))
             ## save data file
             data_filename = (
-                f"{data_descriptor}_{osom_data_filename}_timestep{time+1:0{digits}}"
+                f"{data_descriptor}_{osom_data_filename}_timestep{time_t:0{digits}}"
             )
 
-            #outData32 = out_data.astype(np.float32)
-            # save to png
-            #png_file = os.path.join(output_f, data_filename + ".tif")
-            # cv2.imwrite(png_file, outData32[:,:,0],cv2.CV_32F)
-
-            data_digits = len(str(np.shape(data)[2] + 1))
-            print(np.shape(data))
-            # for z in range(out_data.shape[2]):
-            #     tiff_filename = (
-            #         f"{data_filename}_slice{z:0{data_digits}}")
-            #     tiff_file = os.path.join(output_folder,"tiff_data",tiff_filename+".tif")
-           
-                # im = Image.fromarray(a, mode="RGB")
-                # im.getpixel((0, 0))  # (44, 1, 0)
-
-                #im.save(tiff_file)
-            #imageio.imwrite(png_file, slice_0)
-            #print(f'wrote: {image.dtype}')
-            #image = imageio.imread(png_file)
-            #print(f'read:  {image.dtype}')
-            #print(f'read:  {image.dtype}')
-
             with open(
-                os.path.join(output_f, data_filename + ".raw"), "wb"
+                os.path.join(output_folder, data_filename + ".raw"), "wb"
             ) as data_file:
+                outData32 = out_data.astype(np.float32)
                 outData32.tofile(data_file)
 
             ## save description file
             with open(
-                os.path.join(output_f, data_filename + ".desc"), "w"
+                os.path.join(output_folder, data_filename + ".desc"), "w"
             ) as desc_file:
                 fprintf(
                     desc_file,
@@ -192,11 +156,14 @@ def createOsomData(
                     min_data,
                     max_data,
                 )
-                current_time = start_time + timedelta(0, ocean_time[time])
-                fprintf(desc_file, "%i\n", datetime.timestamp(current_time))
-                fprintf(desc_file, "%s\n", current_time.strftime("%m/%d/%Y-%H:%M:%S"))
+                ocean_times = netcdftime.num2date(
+                    ocean_time[time_t],
+                    units=ocean_time_properties.units,
+                    calendar=ocean_time_properties.calendar,
+                )
+                fprintf(desc_file, "%s\n", ocean_times.strftime("%Y-%m-%d %H:%M:%S"))
+    typer.echo(" End of process")
 
-if __name__ == "__main__":
+
+def main():
     app()
-# def main():
-#     app()
