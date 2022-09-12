@@ -249,13 +249,6 @@ def convert_to_png(
             for slice in progress:
                 img_n_bits = images_in_sequence[slice]
                 if bits_per_sample == np.uint16 and scale_to_8_bit:
-                    # global_scale = float(np.max(img_n_bits) - np.min(img_n_bits))
-                    # if global_scale == 0:
-                    #     global_scale = 1
-                    # scale = 255.0 / global_scale
-                    # byte_data = (img_n_bits - np.min(img_n_bits)) * scale
-                    # img_n_bits = (byte_data.clip(0, 255) + 0.5).astype(np.uint8)
-                    img_n_bits = np.subtract(img_n_bits, global_min_pixel)
                     img_n_bits = np.true_divide(img_n_bits, global_max_pixel - global_min_pixel)
                     img_n_bits = np.multiply(img_n_bits, 255).astype(np.uint8)
                     bits_per_sample = np.uint8
