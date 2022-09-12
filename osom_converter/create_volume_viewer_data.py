@@ -31,12 +31,10 @@ def createOsomData(
     """
     Converts NETCDF files (*.nc) from the osom model to data files that can be read
     in the volume viewer desktop app
-
     osom_gridfile: grid file providing uv transformation coordinates ( i.e: file provided by this tool osom_grid4_mindep_smlp_mod7.nc)
     osom_data_file: osom data file with multi-variable data
     output_folder: location where the resulting data will be saved
     data_descriptor: variable to extract from the osom data file (temp, salt)
-
     """
     # Default factors/scalers
     verticalLevels = 15
@@ -167,8 +165,5 @@ def createOsomData(
     typer.echo(" End of process")
 
 
-if __name__ == "__main__":
+def main():
     app()
-
-# def main():
-#     app()
