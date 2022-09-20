@@ -33,8 +33,16 @@ jupyter = ["ipython (>=7.8.0)", "tokenize-rt (>=3.2.0)"]
 uvloop = ["uvloop (>=0.15.2)"]
 
 [[package]]
+name = "certifi"
+version = "2022.9.14"
+description = "Python package for providing Mozilla's CA Bundle."
+category = "main"
+optional = false
+python-versions = ">=3.6"
+
+[[package]]
 name = "cftime"
-version = "1.6.1"
+version = "1.6.2"
 description = "Time-handling functionality from netcdf4-python"
 category = "main"
 optional = false
@@ -42,6 +50,17 @@ python-versions = ">=3.7"
 
 [package.dependencies]
 numpy = ">1.13.3"
+
+[[package]]
+name = "charset-normalizer"
+version = "2.1.1"
+description = "The Real First Universal Charset Detector. Open, modern and actively maintained alternative to Chardet."
+category = "main"
+optional = false
+python-versions = ">=3.6.0"
+
+[package.extras]
+unicode_backport = ["unicodedata2"]
 
 [[package]]
 name = "click"
@@ -63,6 +82,24 @@ optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
 
 [[package]]
+name = "contourpy"
+version = "1.0.5"
+description = "Python library for calculating contours of 2D quadrilateral grids"
+category = "main"
+optional = false
+python-versions = ">=3.7"
+
+[package.dependencies]
+numpy = ">=1.16"
+
+[package.extras]
+test-no-codebase = ["pillow", "matplotlib", "pytest"]
+test-minimal = ["pytest"]
+test = ["isort", "flake8", "pillow", "matplotlib", "pytest"]
+docs = ["sphinx-rtd-theme", "sphinx", "docutils (<0.18)"]
+bokeh = ["selenium", "bokeh"]
+
+[[package]]
 name = "cycler"
 version = "0.11.0"
 description = "Composable style cycles"
@@ -79,8 +116,20 @@ optional = false
 python-versions = ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*"
 
 [[package]]
+name = "erddapy"
+version = "1.2.1"
+description = "Python interface for ERDDAP"
+category = "main"
+optional = false
+python-versions = ">=3.6"
+
+[package.dependencies]
+pandas = ">=0.20.3"
+requests = "*"
+
+[[package]]
 name = "fonttools"
-version = "4.37.1"
+version = "4.37.2"
 description = "Tools to manipulate font files"
 category = "main"
 optional = false
@@ -101,8 +150,16 @@ unicode = ["unicodedata2 (>=14.0.0)"]
 woff = ["zopfli (>=0.1.4)", "brotlicffi (>=0.8.0)", "brotli (>=1.0.1)"]
 
 [[package]]
+name = "idna"
+version = "3.4"
+description = "Internationalized Domain Names in Applications (IDNA)"
+category = "main"
+optional = false
+python-versions = ">=3.5"
+
+[[package]]
 name = "imageio"
-version = "2.21.3"
+version = "2.22.0"
 description = "Library for reading and writing a wide range of image, video, scientific, and volumetric data formats."
 category = "main"
 optional = false
@@ -147,22 +204,23 @@ python-versions = ">=3.7"
 
 [[package]]
 name = "matplotlib"
-version = "3.5.3"
+version = "3.6.0"
 description = "Python plotting package"
 category = "main"
 optional = false
-python-versions = ">=3.7"
+python-versions = ">=3.8"
 
 [package.dependencies]
+contourpy = ">=1.0.1"
 cycler = ">=0.10"
 fonttools = ">=4.22.0"
 kiwisolver = ">=1.0.1"
-numpy = ">=1.17"
+numpy = ">=1.19"
 packaging = ">=20.0"
 pillow = ">=6.2.0"
 pyparsing = ">=2.2.1"
 python-dateutil = ">=2.7"
-setuptools_scm = ">=4,<7"
+setuptools_scm = ">=7"
 
 [[package]]
 name = "mplhep"
@@ -259,6 +317,25 @@ python-versions = ">=3.6"
 pyparsing = ">=2.0.2,<3.0.5 || >3.0.5"
 
 [[package]]
+name = "pandas"
+version = "1.5.0"
+description = "Powerful data structures for data analysis, time series, and statistics"
+category = "main"
+optional = false
+python-versions = ">=3.8"
+
+[package.dependencies]
+numpy = [
+    {version = ">=1.21.0", markers = "python_version >= \"3.10\""},
+    {version = ">=1.20.3", markers = "python_version < \"3.10\""},
+]
+python-dateutil = ">=2.8.1"
+pytz = ">=2020.1"
+
+[package.extras]
+test = ["pytest-xdist (>=1.31)", "pytest (>=6.0)", "hypothesis (>=5.5.3)"]
+
+[[package]]
 name = "pathspec"
 version = "0.10.1"
 description = "Utility library for gitignore style pattern matching of file paths."
@@ -337,6 +414,32 @@ python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,>=2.7"
 six = ">=1.5"
 
 [[package]]
+name = "pytz"
+version = "2022.2.1"
+description = "World timezone definitions, modern and historical"
+category = "main"
+optional = false
+python-versions = "*"
+
+[[package]]
+name = "requests"
+version = "2.28.1"
+description = "Python HTTP for Humans."
+category = "main"
+optional = false
+python-versions = ">=3.7, <4"
+
+[package.dependencies]
+certifi = ">=2017.4.17"
+charset-normalizer = ">=2,<3"
+idna = ">=2.5,<4"
+urllib3 = ">=1.21.1,<1.27"
+
+[package.extras]
+socks = ["PySocks (>=1.5.6,!=1.5.7)"]
+use_chardet_on_py3 = ["chardet (>=3.0.2,<6)"]
+
+[[package]]
 name = "scipy"
 version = "1.7.3"
 description = "SciPy: Scientific Library for Python"
@@ -349,15 +452,16 @@ numpy = ">=1.16.5,<1.23.0"
 
 [[package]]
 name = "setuptools-scm"
-version = "6.4.2"
+version = "7.0.5"
 description = "the blessed package to manage your versions by scm tags"
 category = "main"
 optional = false
-python-versions = ">=3.6"
+python-versions = ">=3.7"
 
 [package.dependencies]
 packaging = ">=20.0"
 tomli = ">=1.0.0"
+typing-extensions = "*"
 
 [package.extras]
 test = ["pytest (>=6.2)", "virtualenv (>20)"]
@@ -373,17 +477,17 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*"
 
 [[package]]
 name = "tifffile"
-version = "2021.11.2"
+version = "2022.8.12"
 description = "Read and write TIFF files"
 category = "main"
 optional = false
-python-versions = ">=3.7"
+python-versions = ">=3.8"
 
 [package.dependencies]
-numpy = ">=1.15.1"
+numpy = ">=1.19.2"
 
 [package.extras]
-all = ["imagecodecs (>=2021.7.30)", "matplotlib (>=3.2)", "lxml"]
+all = ["imagecodecs (>=2022.2.22)", "matplotlib (>=3.3)", "lxml"]
 
 [[package]]
 name = "tiffile"
@@ -433,7 +537,7 @@ all = ["shellingham (>=1.3.0,<2.0.0)", "colorama (>=0.4.3,<0.5.0)"]
 name = "typing-extensions"
 version = "4.3.0"
 description = "Backported and Experimental Type Hints for Python 3.7+"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=3.7"
 
@@ -452,23 +556,41 @@ numpy = ">=1.13.3"
 test = ["boost-histogram (>=1.0)", "importlib-metadata (>=1.0)", "pytest (>=6)"]
 docs = ["sphinx-copybutton (>=0.3.1)", "sphinx-book-theme (>=0.0.40)", "sphinx (>=4.0)"]
 
+[[package]]
+name = "urllib3"
+version = "1.26.12"
+description = "HTTP library with thread-safe connection pooling, file post, and more."
+category = "main"
+optional = false
+python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, !=3.5.*, <4"
+
+[package.extras]
+brotli = ["brotlicffi (>=0.8.0)", "brotli (>=1.0.9)", "brotlipy (>=0.6.0)"]
+secure = ["pyOpenSSL (>=0.14)", "cryptography (>=1.3.4)", "idna (>=2.0.0)", "certifi", "urllib3-secure-extra", "ipaddress"]
+socks = ["PySocks (>=1.5.6,!=1.5.7,<2.0)"]
+
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8,<3.11"
-content-hash = "a1fab82aa7b598abd897ffb6299f03264a62c9cf7a582153f54cc4e57c343b6f"
+content-hash = "a8600ae2faf68aa5c6bed6a07d2c1f9b5e711052f16c2a9bdca1e014a305b207"
 
 [metadata.files]
 autopep8 = []
 black = []
+certifi = []
 cftime = []
+charset-normalizer = []
 click = []
 colorama = []
+contourpy = []
 cycler = [
     {file = "cycler-0.11.0-py3-none-any.whl", hash = "sha256:3a27e95f763a428a739d2add979fa7494c912a32c17c4c38c4d5f082cad165a3"},
     {file = "cycler-0.11.0.tar.gz", hash = "sha256:9c87405839a19696e837b3b818fed3f5f69f16f1eec1a1ad77e043dcea9c772f"},
 ]
 cython = []
+erddapy = []
 fonttools = []
+idna = []
 imageio = []
 imagesize = []
 kiwisolver = []
@@ -541,6 +663,7 @@ packaging = [
     {file = "packaging-21.3-py3-none-any.whl", hash = "sha256:ef103e05f519cdc783ae24ea4e2e0f508a9c99b2d4969652eed6a2e1ea5bd522"},
     {file = "packaging-21.3.tar.gz", hash = "sha256:dd47c42927d89ab911e606518907cc2d3a1f38bbd026385970643f9c5b8ecfeb"},
 ]
+pandas = []
 pathspec = []
 pillow = []
 platformdirs = [
@@ -557,6 +680,8 @@ python-dateutil = [
     {file = "python-dateutil-2.8.2.tar.gz", hash = "sha256:0123cacc1627ae19ddf3c27a5de5bd67ee4586fbdd6440d9748f8abb483d3e86"},
     {file = "python_dateutil-2.8.2-py2.py3-none-any.whl", hash = "sha256:961d03dc3453ebbc59dbdea9e4e11c5651520a876d0f4db161e8674aae935da9"},
 ]
+pytz = []
+requests = []
 scipy = [
     {file = "scipy-1.7.3-1-cp310-cp310-macosx_12_0_arm64.whl", hash = "sha256:c9e04d7e9b03a8a6ac2045f7c5ef741be86727d8f49c45db45f244bdd2bcff17"},
     {file = "scipy-1.7.3-1-cp38-cp38-macosx_12_0_arm64.whl", hash = "sha256:b0e0aeb061a1d7dcd2ed59ea57ee56c9b23dd60100825f98238c06ee5cc4467e"},
@@ -588,18 +713,12 @@ scipy = [
     {file = "scipy-1.7.3-cp39-cp39-win_amd64.whl", hash = "sha256:3f78181a153fa21c018d346f595edd648344751d7f03ab94b398be2ad083ed3e"},
     {file = "scipy-1.7.3.tar.gz", hash = "sha256:ab5875facfdef77e0a47d5fd39ea178b58e60e454a4c85aa1e52fcb80db7babf"},
 ]
-setuptools-scm = [
-    {file = "setuptools_scm-6.4.2-py3-none-any.whl", hash = "sha256:acea13255093849de7ccb11af9e1fb8bde7067783450cee9ef7a93139bddf6d4"},
-    {file = "setuptools_scm-6.4.2.tar.gz", hash = "sha256:6833ac65c6ed9711a4d5d2266f8024cfa07c533a0e55f4c12f6eff280a5a9e30"},
-]
+setuptools-scm = []
 six = [
     {file = "six-1.16.0-py2.py3-none-any.whl", hash = "sha256:8abb2f1d86890a2dfb989f9a77cfcfd3e47c2a354b01111771326f8aa26e0254"},
     {file = "six-1.16.0.tar.gz", hash = "sha256:1e61c37477a1626458e36f7b1d82aa5c9b094fa4802892072e49de9c60c4c926"},
 ]
-tifffile = [
-    {file = "tifffile-2021.11.2-py3-none-any.whl", hash = "sha256:2e0066f90e2dbeb3e6a287cfd78bafbd2f142fabbca4a76a8ff809573baf5ad5"},
-    {file = "tifffile-2021.11.2.tar.gz", hash = "sha256:153e31fa1d892f482fabb2ae9f2561fa429ee42d01a6f67e58cee13637d9285b"},
-]
+tifffile = []
 tiffile = [
     {file = "tiffile-2018.10.18-py2.py3-none-any.whl", hash = "sha256:0176e905517bb9b62c2064d7eda0c4f250360750069f1482435464cd4357b664"},
 ]
@@ -611,3 +730,4 @@ tomli = [
 typer = []
 typing-extensions = []
 uhi = []
+urllib3 = []

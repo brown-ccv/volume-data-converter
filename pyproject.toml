@@ -27,6 +27,7 @@ Pillow = "^9.2.0"
 pypng = "^0.20220715.0"
 netcdftime = "^1.0.0-alpha.2"
 numpy = "1.22"
+erddapy = "^1.2.1"
 
 
 
