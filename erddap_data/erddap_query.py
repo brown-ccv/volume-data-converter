@@ -7,6 +7,7 @@ import logging
 from erddapy import ERDDAP
 import json
 import typer
+import sys
 
 app = typer.Typer()
 
@@ -18,8 +19,14 @@ def erddap_query( erddap_configuration_file: str = typer.Option(
         help=" json file with the erddap connection settings",
     ) ):
     
-    with open(erddap_configuration_file, "r") as f:
-        configuration = json.load(f)
+    try:
+        conf_file = open(erddap_configuration_file, 'r')
+    except OSError:
+        typer.echo(" Could not open/read file: "+ erddap_configuration_file)
+        sys.exit()
+
+    with conf_file:
+        configuration = json.load(conf_file)
 
     erddap_connection_object = configuration["erddap_connection"]
     if not erddap_connection_object:
