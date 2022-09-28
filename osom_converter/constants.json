@@ -1,0 +1,9 @@
+{
+    "Vtransform": 2,
+    "Vstretching": 4,
+    "theta_s":1.0,
+    "theta_b":1.0,
+    "hc":3.0,
+    "time_variable":"time",
+    "data_format":["time","s_rho","eta_rho","xi_ho"]
+}

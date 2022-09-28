@@ -116,6 +116,20 @@ optional = false
 python-versions = ">=2.6, !=3.0.*, !=3.1.*, !=3.2.*"
 
 [[package]]
+name = "erddap-python"
+version = "1.0.0"
+description = "Python erddap API client"
+category = "main"
+optional = false
+python-versions = ">=3.6"
+
+[package.dependencies]
+netCDF4 = "*"
+pandas = "*"
+requests = "*"
+xarray = "*"
+
+[[package]]
 name = "erddapy"
 version = "1.2.1"
 description = "Python interface for ERDDAP"
@@ -569,10 +583,31 @@ brotli = ["brotlicffi (>=0.8.0)", "brotli (>=1.0.9)", "brotlipy (>=0.6.0)"]
 secure = ["pyOpenSSL (>=0.14)", "cryptography (>=1.3.4)", "idna (>=2.0.0)", "certifi", "urllib3-secure-extra", "ipaddress"]
 socks = ["PySocks (>=1.5.6,!=1.5.7,<2.0)"]
 
+[[package]]
+name = "xarray"
+version = "2022.6.0"
+description = "N-D labeled arrays and datasets in Python"
+category = "main"
+optional = false
+python-versions = ">=3.8"
+
+[package.dependencies]
+numpy = ">=1.19"
+packaging = ">=20.0"
+pandas = ">=1.2"
+
+[package.extras]
+accel = ["scipy", "bottleneck", "numbagg", "flox"]
+complete = ["netcdf4", "h5netcdf", "scipy", "pydap", "zarr", "fsspec", "cftime", "rasterio", "cfgrib", "pooch", "bottleneck", "numbagg", "flox", "dask", "matplotlib", "seaborn", "nc-time-axis"]
+docs = ["netcdf4", "h5netcdf", "scipy", "pydap", "zarr", "fsspec", "cftime", "rasterio", "cfgrib", "pooch", "bottleneck", "numbagg", "flox", "dask", "matplotlib", "seaborn", "nc-time-axis", "sphinx-autosummary-accessors", "sphinx-rtd-theme", "ipython", "ipykernel", "jupyter-client", "nbsphinx", "scanpydoc"]
+io = ["netcdf4", "h5netcdf", "scipy", "pydap", "zarr", "fsspec", "cftime", "rasterio", "cfgrib", "pooch"]
+parallel = ["dask"]
+viz = ["matplotlib", "seaborn", "nc-time-axis"]
+
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8,<3.11"
-content-hash = "a8600ae2faf68aa5c6bed6a07d2c1f9b5e711052f16c2a9bdca1e014a305b207"
+content-hash = "ebcfa44f99646b1c3a5d7277e1e8fde3bb6b8300d71893e329d64d9608b185e7"
 
 [metadata.files]
 autopep8 = []
@@ -588,6 +623,7 @@ cycler = [
     {file = "cycler-0.11.0.tar.gz", hash = "sha256:9c87405839a19696e837b3b818fed3f5f69f16f1eec1a1ad77e043dcea9c772f"},
 ]
 cython = []
+erddap-python = []
 erddapy = []
 fonttools = []
 idna = []
@@ -731,3 +767,4 @@ typer = []
 typing-extensions = []
 uhi = []
 urllib3 = []
+xarray = []

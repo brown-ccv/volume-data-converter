@@ -6,13 +6,20 @@ import os
 from osom_converter import scoord_du_new2 as scoor_du
 from typing import List
 
+import json
+import sys
 
 app = typer.Typer()
 
+constants_file_path = "constants.json"
 
 def fprintf(stream, format_spec, *args):
     stream.write(format_spec % args)
 
+def getVariableValOrDefault(configuration_file, nc_file_handler, variable_name: str):
+    if variable_name in nc_file_handler.variables:
+        return nc_file_handler.variables[variable_name][:]
+    return configuration_file[variable_name]
 
 @app.command()
 def createOsomData(
@@ -36,6 +43,16 @@ def createOsomData(
     output_folder: location where the resulting data will be saved
     data_descriptor: variable to extract from the osom data file (temp, salt)
     """
+
+    try:
+        conf_file = open(constants_file_path, 'r')
+    except OSError:
+        typer.echo(" Could not open/read file: "+ constants_file_path)
+        sys.exit()
+
+    with conf_file:
+        configuration_file = json.load(conf_file)
+
     # Default factors/scalers
     verticalLevels = 15
     downscaleFactor = 2
@@ -52,15 +69,47 @@ def createOsomData(
 
     # Assigning data variables
     typer.echo(" Assigning data from data files")
+    if data_descriptor not in nc_dataFile.variables:
+        raise Exception(f"No variable with name: {data_descriptor}")
+
     data = nc_dataFile.variables[data_descriptor][:]
-    zeta = nc_dataFile.variables["zeta"][:]
-    vtransform = nc_dataFile.variables["Vtransform"][:]
-    vstretching = nc_dataFile.variables["Vstretching"][:]
-    theta_s = nc_dataFile.variables["theta_s"][:]
-    theta_b = nc_dataFile.variables["theta_b"][:]
-    hc = nc_dataFile.variables["hc"][:]
-    ocean_time = nc_dataFile.variables["ocean_time"][:]
-    ocean_time_properties = nc_dataFile.variables["ocean_time"]
+    data_properties =  nc_dataFile.variables[data_descriptor]
+    data_dimensions = data_properties.dimensions
+
+    ## zeta needs a different treatment form the other variables. If it's not in the configuration file, then build it from the descriptor's data itself
+    if "zeta"  in nc_dataFile.variables:
+        zeta = nc_dataFile.variables["zeta"][:]
+    else:
+        zeta = np.zeros(shape=(data.shape))
+
+     # check if it's a volume or a single slice. Make the corrsponding transformation to 3D array 
+    if "s_rho" not in data_dimensions:
+        new_data = np.ma.zeros((data.shape[0],15,data.shape[1],data.shape[2]),dtype=data.dtype)
+        #data = np.expand_dims(data, 1)
+        
+        for i in range(data.shape[0]):
+            new_data[i,0,:,:] = data[i,:,:]
+            # b = data[i,:,:,:]
+            # print(np.shape(b))
+            # x = np.concatenate((b,a),axis=1)
+            # data = np.stack((data[i,:,:,:],new_data),axis=1)
+        data = new_data
+
+        #data = np.reshape(data, (data.shape[0],15,data.shape[1],data.shape[2]))
+
+    vtransform = getVariableValOrDefault(configuration_file,nc_dataFile, "Vtransform")
+    vstretching = getVariableValOrDefault(configuration_file,nc_dataFile, "Vstretching")
+    theta_s = getVariableValOrDefault(configuration_file,nc_dataFile, "theta_s")
+    theta_b = getVariableValOrDefault(configuration_file,nc_dataFile, "theta_b")
+    hc =getVariableValOrDefault(configuration_file,nc_dataFile, "hc")
+
+    time_variable_name = configuration_file["time_variable"]
+    #time_variable_name = "ocean_time"
+    if time_variable_name not in nc_dataFile.variables:
+        raise Exception("Time variable not found")
+    
+    ocean_time = nc_dataFile.variables[time_variable_name][:]
+    ocean_time_properties = nc_dataFile.variables[time_variable_name]
 
     # Compute and plot ROMS vertical stretched coordinates
     typer.echo(" Computing ROMS vertical stretched coordinates")
@@ -114,9 +163,11 @@ def createOsomData(
                         t_data = data[time_t, :, x, y]
                         t_data = np.ma.squeeze(t_data)
                         idx = ~t_data.mask
+                        
                         if np.sum(idx.astype(int)) > 0:
                             # read set depth
-                            domain = z[idx, x, y]
+                            idx_1d = np.atleast_1d(idx)
+                            domain = z[idx_1d, x, y]
                             # read values
                             mapped_values = np.ma.round(t_data[idx], decimals=4)
                             t_new = np.interp(
@@ -163,6 +214,9 @@ def createOsomData(
                 )
                 fprintf(desc_file, "%s\n", ocean_times.strftime("%Y-%m-%d %H:%M:%S"))
     typer.echo(" End of process")
+
+if __name__ == "__main__":
+    app()
 
 
 def main():
