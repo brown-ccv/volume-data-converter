@@ -1,13 +1,12 @@
 [tool.poetry]
-name = "tiff-2-png"
+name = "volume-data-converter"
 version = "0.1.0"
 description = "Tool to convert stack of tiff images to a png texture map"
 authors = ["Camilo Diaz <camilo_diaz@brown.edu>"]
 license = "MIT"
 
 packages = [
-    { include = "osom_converter" },
-    { include = "data_converter" },
+    { include = "volume_data_converter" },
 ]
 
 [tool.poetry.dependencies]
@@ -35,9 +34,9 @@ black = "^22.3.0"
 autopep8 = "^1.7.0"
 
 [tool.poetry.scripts]
-convert2png = "data_converter.tiff_2_png_converter:main"
-raw2tiff = "data_converter.raw_2_tiff_converter:main"
-osom_converter = "osom_converter.create_volume_viewer_data:main"
+convert2png = "volume_data_converter/.tiff_2_png_converter:main"
+raw2tiff = "volume_data_converter/.raw_2_tiff_converter:main"
+osom_converter = "volume_data_converter/.create_volume_viewer_data:main"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
