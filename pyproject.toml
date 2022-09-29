@@ -28,7 +28,7 @@ pypng = "^0.20220715.0"
 netcdftime = "^1.0.0-alpha.2"
 numpy = "1.22"
 erddapy = "^1.2.1"
-erddap-python = "^1.0.0"
+xarray = "^2022.6.0"
 
 
 

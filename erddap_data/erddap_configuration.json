@@ -10,7 +10,7 @@
     },
     "erddap_constrainst":
     {
-        "variables":[],
+        "variables":["SalinityBottom"],
         "time>=": "2019-12-30T00:00:00Z",
         "time<=": "2019-12-31T00:00:00Z",
         "time_step": 1,
