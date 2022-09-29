@@ -3,7 +3,7 @@ import netcdftime
 import typer
 import numpy as np
 import os
-from osom_converter import scoord_du_new2 as scoor_du
+from volume_data_converter import scoord_du_new2 as scoor_du
 from typing import List
 
 
