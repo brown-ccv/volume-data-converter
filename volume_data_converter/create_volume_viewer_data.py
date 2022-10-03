@@ -3,7 +3,7 @@ import netcdftime
 import typer
 import numpy as np
 import os
-from osom_converter import scoord_du_new2 as scoor_du
+from volume_data_converter import scoord_du_new2 as scoor_du
 from typing import List
 
 import json
@@ -12,7 +12,7 @@ from pathlib import Path
 
 app = typer.Typer()
 
-constants_file_path = os.path.join(Path(__file__).absolute().parent,"constants.json")
+constants_file_path = os.path.join(Path(__file__).absolute().parent,"config","constants.json")
 
 def fprintf(stream, format_spec, *args):
     stream.write(format_spec % args)

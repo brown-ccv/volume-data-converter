@@ -34,7 +34,7 @@ uvloop = ["uvloop (>=0.15.2)"]
 
 [[package]]
 name = "certifi"
-version = "2022.9.14"
+version = "2022.9.24"
 description = "Python package for providing Mozilla's CA Bundle."
 category = "main"
 optional = false
@@ -129,7 +129,7 @@ requests = "*"
 
 [[package]]
 name = "fonttools"
-version = "4.37.2"
+version = "4.37.4"
 description = "Tools to manipulate font files"
 category = "main"
 optional = false
@@ -177,7 +177,7 @@ python-versions = ">=3.5"
 
 [[package]]
 name = "imageio"
-version = "2.22.0"
+version = "2.22.1"
 description = "Library for reading and writing a wide range of image, video, scientific, and volumetric data formats."
 category = "main"
 optional = false
@@ -459,7 +459,7 @@ six = ">=1.5"
 
 [[package]]
 name = "pytz"
-version = "2022.2.1"
+version = "2022.4"
 description = "World timezone definitions, modern and historical"
 category = "main"
 optional = false
@@ -606,7 +606,7 @@ python-versions = ">=3.7"
 
 [[package]]
 name = "uhi"
-version = "0.3.1"
+version = "0.3.2"
 description = "Unified Histogram Interface: tools to help library authors work with histograms"
 category = "main"
 optional = false
@@ -616,8 +616,8 @@ python-versions = ">=3.6"
 numpy = ">=1.13.3"
 
 [package.extras]
-test = ["boost-histogram (>=1.0)", "importlib-metadata (>=1.0)", "pytest (>=6)"]
-docs = ["sphinx-copybutton (>=0.3.1)", "sphinx-book-theme (>=0.0.40)", "sphinx (>=4.0)"]
+test = ["pytest (>=6)", "importlib-metadata (>=1.0)", "boost-histogram (>=1.0)"]
+docs = ["sphinx (>=4.0)", "sphinx-copybutton (>=0.3.1)", "sphinx-book-theme (>=0.0.40)"]
 
 [[package]]
 name = "urllib3"
@@ -634,7 +634,7 @@ socks = ["PySocks (>=1.5.6,!=1.5.7,<2.0)"]
 
 [[package]]
 name = "xarray"
-version = "2022.6.0"
+version = "2022.9.0"
 description = "N-D labeled arrays and datasets in Python"
 category = "main"
 optional = false
@@ -647,9 +647,9 @@ pandas = ">=1.2"
 
 [package.extras]
 accel = ["scipy", "bottleneck", "numbagg", "flox"]
-complete = ["netcdf4", "h5netcdf", "scipy", "pydap", "zarr", "fsspec", "cftime", "rasterio", "cfgrib", "pooch", "bottleneck", "numbagg", "flox", "dask", "matplotlib", "seaborn", "nc-time-axis"]
-docs = ["netcdf4", "h5netcdf", "scipy", "pydap", "zarr", "fsspec", "cftime", "rasterio", "cfgrib", "pooch", "bottleneck", "numbagg", "flox", "dask", "matplotlib", "seaborn", "nc-time-axis", "sphinx-autosummary-accessors", "sphinx-rtd-theme", "ipython", "ipykernel", "jupyter-client", "nbsphinx", "scanpydoc"]
-io = ["netcdf4", "h5netcdf", "scipy", "pydap", "zarr", "fsspec", "cftime", "rasterio", "cfgrib", "pooch"]
+complete = ["netcdf4", "h5netcdf", "scipy", "zarr", "fsspec", "cftime", "rasterio", "cfgrib", "pooch", "bottleneck", "numbagg", "flox", "dask", "matplotlib", "seaborn", "nc-time-axis", "pydap"]
+docs = ["netcdf4", "h5netcdf", "scipy", "zarr", "fsspec", "cftime", "rasterio", "cfgrib", "pooch", "bottleneck", "numbagg", "flox", "dask", "matplotlib", "seaborn", "nc-time-axis", "sphinx-autosummary-accessors", "sphinx-rtd-theme", "ipython", "ipykernel", "jupyter-client", "nbsphinx", "scanpydoc", "pydap"]
+io = ["netcdf4", "h5netcdf", "scipy", "zarr", "fsspec", "cftime", "rasterio", "cfgrib", "pooch", "pydap"]
 parallel = ["dask"]
 viz = ["matplotlib", "seaborn", "nc-time-axis"]
 

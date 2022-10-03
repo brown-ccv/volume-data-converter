@@ -1,4 +1,4 @@
-from osom_converter import stretching as stch
+from volume_data_converter import stretching as stch
 import numpy as np
 import typer
 

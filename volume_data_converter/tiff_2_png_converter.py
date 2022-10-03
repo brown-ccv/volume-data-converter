@@ -5,7 +5,7 @@ import numpy as np
 import imagesize
 import math
 import tifffile as tiff
-from tiff_2_png import image_process_helper as iph
+from volume_data_converter import image_process_helper as iph
 import logging
 import matplotlib.pyplot as plt
 import mplhep as hep
