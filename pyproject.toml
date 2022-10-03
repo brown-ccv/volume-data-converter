@@ -9,6 +9,7 @@ packages = [
     { include = "tiff_2_png" },
     { include = "osom_converter" },
     { include = "raw_2_tiff" },
+    { include = "erddap_data" },
 ]
 
 [tool.poetry.dependencies]
@@ -29,6 +30,8 @@ netcdftime = "^1.0.0-alpha.2"
 numpy = "1.22"
 erddapy = "^1.2.1"
 xarray = "^2022.6.0"
+halo = "^0.0.31"
+importlib-resources = "^5.9.0"
 
 
 
@@ -40,6 +43,7 @@ autopep8 = "^1.7.0"
 convert2png = "tiff_2_png.tiff_2_png_converter:main"
 osom-converter = "osom_converter.create_volume_viewer_data:main"
 raw2tiff = "raw_2_tiff.raw_2_tiff_converter:main"
+erdapp-query = "erddap_data.erddap_query:main"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

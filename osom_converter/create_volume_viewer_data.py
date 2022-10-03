@@ -8,10 +8,11 @@ from typing import List
 
 import json
 import sys
+from pathlib import Path
 
 app = typer.Typer()
 
-constants_file_path = "constants.json"
+constants_file_path = os.path.join(Path(__file__).absolute().parent,"constants.json")
 
 def fprintf(stream, format_spec, *args):
     stream.write(format_spec % args)
@@ -33,6 +34,10 @@ def createOsomData(
         [],
         help=" List of time frames to convert to raw. By default is None: it will convert all the time frames in a .nc file",
     ),
+    layer: str = typer.Option(
+        "all",
+        help=" Layers of the osom model this nc files maps to. Options: all, surface, bottom",
+    )
 ):
 
     """
@@ -57,6 +62,10 @@ def createOsomData(
     verticalLevels = 15
     downscaleFactor = 2
 
+    #check layers
+    if layer not in ['all','surface','bottom']:
+        raise Exception(f"layer option {layer} not supported")
+
     # Read files
     typer.echo(" Reading " + osom_gridfile)
     nc_grid_values = Dataset(osom_gridfile, "r")
@@ -70,7 +79,7 @@ def createOsomData(
     # Assigning data variables
     typer.echo(" Assigning data from data files")
     if data_descriptor not in nc_dataFile.variables:
-        raise Exception(f"No variable with name: {data_descriptor}")
+        raise Exception(f"No variable with name: {data_descriptor}. Options are {nc_dataFile.variables}")
 
     data = nc_dataFile.variables[data_descriptor][:]
     data_properties =  nc_dataFile.variables[data_descriptor]
@@ -83,19 +92,21 @@ def createOsomData(
         zeta = np.zeros(shape=(data.shape))
 
      # check if it's a volume or a single slice. Make the corrsponding transformation to 3D array 
-    if "s_rho" not in data_dimensions:
-        new_data = np.ma.zeros((data.shape[0],15,data.shape[1],data.shape[2]),dtype=data.dtype)
-        #data = np.expand_dims(data, 1)
+    
+    if layer == 'all' and "s_rho" not in data_dimensions:
+            raise Exception("current dataset does not support elevation layers") 
+
+    elif layer!= 'all' and "s_rho" not in data_dimensions:
+        #no elevation data. build a block of 0s    
+        new_data = np.ma.zeros((data.shape[0],verticalLevels,data.shape[1],data.shape[2]),dtype=data.dtype)
+        data_slice = 0 # bottom by default
+        if layer == 'surface':
+            data_slice = verticalLevels-1
         
         for i in range(data.shape[0]):
-            new_data[i,0,:,:] = data[i,:,:]
-            # b = data[i,:,:,:]
-            # print(np.shape(b))
-            # x = np.concatenate((b,a),axis=1)
-            # data = np.stack((data[i,:,:,:],new_data),axis=1)
+            new_data[i,data_slice,:,:] = data[i,:,:]
         data = new_data
 
-        #data = np.reshape(data, (data.shape[0],15,data.shape[1],data.shape[2]))
 
     vtransform = getVariableValOrDefault(configuration_file,nc_dataFile, "Vtransform")
     vstretching = getVariableValOrDefault(configuration_file,nc_dataFile, "Vstretching")
