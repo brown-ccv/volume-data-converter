@@ -1,3 +1,4 @@
+from re import L
 from netCDF4 import Dataset
 import netcdftime
 import typer
@@ -5,6 +6,7 @@ import numpy as np
 import os
 from volume_data_converter import scoord_du_new2 as scoor_du
 from typing import List
+import shutil
 
 import json
 import sys
@@ -13,6 +15,7 @@ from pathlib import Path
 app = typer.Typer()
 
 constants_file_path = os.path.join(Path(__file__).absolute().parent,"config","constants.json")
+resources_folder_path = os.path.join(Path(__file__).absolute().parent,"resources")
 
 def fprintf(stream, format_spec, *args):
     stream.write(format_spec % args)
@@ -149,12 +152,23 @@ def createOsomData(
     max_data = np.ceil(data.max())
 
     # scale data to the range of 0 and 1
-    data = (data - min_data) / (max_data - min_data)
+    data -=min_data
+    data /= (max_data - min_data)
 
     OsomDataFilePath, osom_data_filename = os.path.split(osom_data_file)
     osom_data_filename, ext = os.path.splitext(osom_data_filename)
+    
+    output_folder_root,output_folder_subfolder = os.path.split(output_folder)
+    if not os.path.exists(output_folder_root):
+        raise Exception("Output folder root path does not exist")
+    
     if not os.path.exists(output_folder):
-        os.mkdir(output_folder)
+        os.mkdir(output_folder) # create parent folder
+        
+    # create osom-data root-folder
+    output_folder = os.path.join(output_folder,f"osom-data-{data_descriptor}")
+    if not os.path.exists(output_folder):
+        os.mkdir(output_folder) 
 
     if len(time_frames) == 0:
         time_frames = np.arange(np.shape(data)[0]).tolist()
@@ -198,16 +212,22 @@ def createOsomData(
             data_filename = (
                 f"{data_descriptor}_{osom_data_filename}_timestep{time_t:0{digits}}"
             )
-
+            
+            
+            output_data_folder = os.path.join(output_folder,"data") 
+            if not os.path.exists(output_data_folder):
+                os.mkdir(output_data_folder)
+            
             with open(
-                os.path.join(output_folder, data_filename + ".raw"), "wb"
+                os.path.join(output_data_folder, data_filename + ".raw"), "wb"
             ) as data_file:
                 outData32 = out_data.astype(np.float32)
                 outData32.tofile(data_file)
 
             ## save description file
+            desc_file_path  = os.path.join(output_data_folder, data_filename + ".desc")
             with open(
-                os.path.join(output_folder, data_filename + ".desc"), "w"
+                desc_file_path, "w"
             ) as desc_file:
                 fprintf(
                     desc_file,
@@ -224,6 +244,18 @@ def createOsomData(
                     calendar=ocean_time_properties.calendar,
                 )
                 fprintf(desc_file, "%s\n", ocean_times.strftime("%Y-%m-%d %H:%M:%S"))
+    typer.echo(" Creating volume viewer package")
+    shutil.copytree(resources_folder_path,output_folder,dirs_exist_ok=True)
+    with open(
+                os.path.join(output_folder, "osom-loader.txt"), "a"
+            ) as loader_file:
+                fprintf(
+                        loader_file,f"numVolumes 1 {data_descriptor} \n"
+                )
+                fprintf(
+                        loader_file,f"volume1  data/{data_filename}.desc 1 1 1 0 0 0 raycast 1\n"
+                )
+            
     typer.echo(" End of process")
 
 if __name__ == "__main__":
