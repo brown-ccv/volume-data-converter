@@ -1,1 +1,2 @@
 osom_grid4_mindep_smlp_mod7.nc filter=lfs diff=lfs merge=lfs -text
+volume_data_converter/resources/textures/OSOM_with_texture_blender_2.obj filter=lfs diff=lfs merge=lfs -text
