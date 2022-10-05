@@ -12,15 +12,20 @@ from pathlib import Path
 
 app = typer.Typer()
 
-constants_file_path = os.path.join(Path(__file__).absolute().parent,"config","constants.json")
+constants_file_path = os.path.join(
+    Path(__file__).absolute().parent, "config", "constants.json"
+)
+
 
 def fprintf(stream, format_spec, *args):
     stream.write(format_spec % args)
+
 
 def getVariableValOrDefault(configuration_file, nc_file_handler, variable_name: str):
     if variable_name in nc_file_handler.variables:
         return nc_file_handler.variables[variable_name][:]
     return configuration_file[variable_name]
+
 
 @app.command()
 def createOsomData(
@@ -37,7 +42,7 @@ def createOsomData(
     layer: str = typer.Option(
         "all",
         help=" Layers of the osom model this nc files maps to. Options: all, surface, bottom",
-    )
+    ),
 ):
 
     """
@@ -50,9 +55,9 @@ def createOsomData(
     """
 
     try:
-        conf_file = open(constants_file_path, 'r')
+        conf_file = open(constants_file_path, "r")
     except OSError:
-        typer.echo(" Could not open/read file: "+ constants_file_path)
+        typer.echo(" Could not open/read file: " + constants_file_path)
         sys.exit()
 
     with conf_file:
@@ -62,8 +67,8 @@ def createOsomData(
     verticalLevels = 15
     downscaleFactor = 2
 
-    #check layers
-    if layer not in ['all','surface','bottom']:
+    # check layers
+    if layer not in ["all", "surface", "bottom"]:
         raise Exception(f"layer option {layer} not supported")
 
     # Read files
@@ -79,46 +84,52 @@ def createOsomData(
     # Assigning data variables
     typer.echo(" Assigning data from data files")
     if data_descriptor not in nc_dataFile.variables:
-        raise Exception(f"No variable with name: {data_descriptor}. Options are {nc_dataFile.variables}")
+        raise Exception(
+            f"No variable with name: {data_descriptor}. Options are {nc_dataFile.variables}"
+        )
 
     data = nc_dataFile.variables[data_descriptor][:]
-    data_properties =  nc_dataFile.variables[data_descriptor]
+    data_properties = nc_dataFile.variables[data_descriptor]
     data_dimensions = data_properties.dimensions
 
     ## zeta needs a different treatment form the other variables. If it's not in the configuration file, then build it from the descriptor's data itself
-    if "zeta"  in nc_dataFile.variables:
+    if "zeta" in nc_dataFile.variables:
         zeta = nc_dataFile.variables["zeta"][:]
     else:
         zeta = np.zeros(shape=(data.shape))
 
-     # check if it's a volume or a single slice. Make the corrsponding transformation to 3D array 
-    
-    if layer == 'all' and "s_rho" not in data_dimensions:
-            raise Exception("current dataset does not support elevation layers") 
+    # check if it's a volume or a single slice. Make the corrsponding transformation to 3D array
 
-    elif layer!= 'all' and "s_rho" not in data_dimensions:
-        #no elevation data. build a block of 0s    
-        new_data = np.ma.zeros((data.shape[0],verticalLevels,data.shape[1],data.shape[2]),dtype=data.dtype)
-        data_slice = 0 # bottom by default
-        if layer == 'surface':
-            data_slice = verticalLevels-1
-        
+    if layer == "all" and "s_rho" not in data_dimensions:
+        raise Exception("current dataset does not support elevation layers")
+
+    elif layer != "all" and "s_rho" not in data_dimensions:
+        # no elevation data. build a block of 0s
+        new_data = np.ma.zeros(
+            (data.shape[0], verticalLevels, data.shape[1], data.shape[2]),
+            dtype=data.dtype,
+        )
+        data_slice = 0  # bottom by default
+        if layer == "surface":
+            data_slice = verticalLevels - 1
+
         for i in range(data.shape[0]):
-            new_data[i,data_slice,:,:] = data[i,:,:]
+            new_data[i, data_slice, :, :] = data[i, :, :]
         data = new_data
 
-
-    vtransform = getVariableValOrDefault(configuration_file,nc_dataFile, "Vtransform")
-    vstretching = getVariableValOrDefault(configuration_file,nc_dataFile, "Vstretching")
-    theta_s = getVariableValOrDefault(configuration_file,nc_dataFile, "theta_s")
-    theta_b = getVariableValOrDefault(configuration_file,nc_dataFile, "theta_b")
-    hc =getVariableValOrDefault(configuration_file,nc_dataFile, "hc")
+    vtransform = getVariableValOrDefault(configuration_file, nc_dataFile, "Vtransform")
+    vstretching = getVariableValOrDefault(
+        configuration_file, nc_dataFile, "Vstretching"
+    )
+    theta_s = getVariableValOrDefault(configuration_file, nc_dataFile, "theta_s")
+    theta_b = getVariableValOrDefault(configuration_file, nc_dataFile, "theta_b")
+    hc = getVariableValOrDefault(configuration_file, nc_dataFile, "hc")
 
     time_variable_name = configuration_file["time_variable"]
-    #time_variable_name = "ocean_time"
+    # time_variable_name = "ocean_time"
     if time_variable_name not in nc_dataFile.variables:
         raise Exception("Time variable not found")
-    
+
     ocean_time = nc_dataFile.variables[time_variable_name][:]
     ocean_time_properties = nc_dataFile.variables[time_variable_name]
 
@@ -174,7 +185,7 @@ def createOsomData(
                         t_data = data[time_t, :, x, y]
                         t_data = np.ma.squeeze(t_data)
                         idx = ~t_data.mask
-                        
+
                         if np.sum(idx.astype(int)) > 0:
                             # read set depth
                             idx_1d = np.atleast_1d(idx)
@@ -225,6 +236,7 @@ def createOsomData(
                 )
                 fprintf(desc_file, "%s\n", ocean_times.strftime("%Y-%m-%d %H:%M:%S"))
     typer.echo(" End of process")
+
 
 if __name__ == "__main__":
     app()
