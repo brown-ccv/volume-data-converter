@@ -1,6 +1,6 @@
 from re import L
 from netCDF4 import Dataset
-import netcdftime
+import cftime
 import typer
 import numpy as np
 import os
@@ -246,7 +246,7 @@ def createOsomData(
                     min_data,
                     max_data,
                 )
-                ocean_times = netcdftime.num2date(
+                ocean_times = cftime.num2date(
                     ocean_time[time_t],
                     units=ocean_time_properties.units,
                     calendar=ocean_time_properties.calendar,
