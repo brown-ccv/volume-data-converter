@@ -1,5 +1,5 @@
 from netCDF4 import Dataset
-import netcdftime
+import cftime
 import typer
 import numpy as np
 import os
@@ -12,19 +12,13 @@ from pathlib import Path
 
 app = typer.Typer()
 
-constants_file_path = os.path.join(
+osom_constants_file_path = os.path.join(
     Path(__file__).absolute().parent, "config", "constants.json"
 )
 
 
 def fprintf(stream, format_spec, *args):
     stream.write(format_spec % args)
-
-
-def getVariableValOrDefault(configuration_file, nc_file_handler, variable_name: str):
-    if variable_name in nc_file_handler.variables:
-        return nc_file_handler.variables[variable_name][:]
-    return configuration_file[variable_name]
 
 
 @app.command()
@@ -41,7 +35,7 @@ def createOsomData(
     ),
     layer: str = typer.Option(
         "all",
-        help=" Layers of the osom model this nc files maps to. Options: all, surface, bottom",
+        help=" Layers of the osom model the nc file maps to. Options: all, surface, bottom",
     ),
 ):
 
@@ -54,18 +48,12 @@ def createOsomData(
     data_descriptor: variable to extract from the osom data file (temp, salt)
     """
 
-    try:
-        conf_file = open(constants_file_path, "r")
-    except OSError:
-        typer.echo(" Could not open/read file: " + constants_file_path)
-        sys.exit()
-
-    with conf_file:
-        configuration_file = json.load(conf_file)
+    osom_const_file = open(osom_constants_file_path, "r")
+    osom_configuration_dicc = json.load(osom_const_file)
 
     # Default factors/scalers
-    verticalLevels = 15
-    downscaleFactor = 2
+    verticalLevels = osom_configuration_dicc.get("verticalLevels",15)
+    downscaleFactor = osom_configuration_dicc.get("downscaleFactor",2)
 
     # check layers
     if layer not in ["all", "surface", "bottom"]:
@@ -96,15 +84,18 @@ def createOsomData(
     if "zeta" in nc_dataFile.variables:
         zeta = nc_dataFile.variables["zeta"][:]
     else:
-        zeta = np.zeros(shape=(data.shape))
+        zeta = np.zeros(shape=data.shape)
 
     # check if it's a volume or a single slice. Make the corrsponding transformation to 3D array
 
-    if layer == "all" and "s_rho" not in data_dimensions:
-        raise Exception("current dataset does not support elevation layers")
-
-    elif layer != "all" and "s_rho" not in data_dimensions:
-        # no elevation data. build a block of 0s
+    if layer.lower() == "all":
+        # s_rho dimension implies that the data is distributed on multiple layers
+        # all is the default value. Check if the dataset is multilayer or not.
+        if "s_rho" not in data_dimensions:
+            raise Exception("current dataset does not support elevation layers")
+    else :
+        # no elevation data. Map the data to a empty block of 'verticalayers' layers.
+        # Our current cases are surface and bottom. They map to layer 0 adn 14 respectively 
         new_data = np.ma.zeros(
             (data.shape[0], verticalLevels, data.shape[1], data.shape[2]),
             dtype=data.dtype,
@@ -117,16 +108,13 @@ def createOsomData(
             new_data[i, data_slice, :, :] = data[i, :, :]
         data = new_data
 
-    vtransform = getVariableValOrDefault(configuration_file, nc_dataFile, "Vtransform")
-    vstretching = getVariableValOrDefault(
-        configuration_file, nc_dataFile, "Vstretching"
-    )
-    theta_s = getVariableValOrDefault(configuration_file, nc_dataFile, "theta_s")
-    theta_b = getVariableValOrDefault(configuration_file, nc_dataFile, "theta_b")
-    hc = getVariableValOrDefault(configuration_file, nc_dataFile, "hc")
+    vtransform = nc_dataFile.variables.get("Vtransform",osom_configuration_dicc["Vtransform"])
+    vstretching = nc_dataFile.variables.get("Vstretching",osom_configuration_dicc["Vstretching"])    
+    theta_s = nc_dataFile.variables.get("theta_s",osom_configuration_dicc["theta_s"])
+    theta_b = nc_dataFile.variables.get("theta_b",osom_configuration_dicc["theta_b"])
+    hc = nc_dataFile.variables.get("hc",osom_configuration_dicc["hc"])
 
-    time_variable_name = configuration_file["time_variable"]
-    # time_variable_name = "ocean_time"
+    time_variable_name = osom_configuration_dicc["time_variable"]
     if time_variable_name not in nc_dataFile.variables:
         raise Exception("Time variable not found")
 
@@ -229,7 +217,7 @@ def createOsomData(
                     min_data,
                     max_data,
                 )
-                ocean_times = netcdftime.num2date(
+                ocean_times = cftime.num2date(
                     ocean_time[time_t],
                     units=ocean_time_properties.units,
                     calendar=ocean_time_properties.calendar,

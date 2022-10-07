@@ -18,8 +18,8 @@ def erddap_query(
         ..., help="Location where the resuilting .raw files will be saved"
     ),
     erddap_configuration_file: str = typer.Option(
-        configuration_file_path,
-        help=" json file with the erddap connection settings",
+        os.path.join( Path(__file__).absolute().parent, "config", "erddap_configuration.json")   
+        ,help=" json file with the erddap connection settings"
     ),
 ):
     """
@@ -30,13 +30,7 @@ def erddap_query(
 
     """
 
-    print(f"configuration_file_path {erddap_configuration_file}")
-    try:
-        conf_file = open(erddap_configuration_file, "r")
-    except OSError:
-        raise (f" Could not open/read file: {erddap_configuration_file} ")
-
-    with conf_file:
+    with open(erddap_configuration_file, "r") as conf_file:
         configuration = json.load(conf_file)
 
     erddap_connection_object = configuration["erddap_connection"]
@@ -70,15 +64,16 @@ def erddap_query(
 
     ## initialize and retrive erddap information
     erddap_obj.griddap_initialize()
-    typer.echo(f"Connect to server: {erddap_connection_object['server']}")
+    typer.echo(f"Connecting to server: {erddap_connection_object['server']}")
     typer.echo(f"Looking up dataset id : {erddap_connection_object['dataset_id']}")
 
     ## set time and variables constraints
-    erddap_constrainst_object = configuration["erddap_constrainst"]
+    erddap_constrainst_object = configuration["erddap_constrainsts"]
 
     check_variables = all(
         item in erddap_obj.variables for item in erddap_constrainst_object["variables"]
     )
+    
     if not check_variables:
         typer.echo(
             f"Verify your query variables are valid in the dataset. The available variables are: {erddap_obj.variables}"
@@ -105,5 +100,5 @@ def main():
     app()
 
 
-# if __name__ == "__main__":
-#     app()
+if __name__ == "__main__":
+    app()
