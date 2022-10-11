@@ -174,7 +174,7 @@ def createOsomData(
                         t_data = np.ma.squeeze(t_data)
                         idx = ~t_data.mask
 
-                        if np.sum(idx.astype(int)) > 0:
+                        if any(idx):
                             # read set depth
                             idx_1d = np.atleast_1d(idx)
                             domain = z[idx_1d, x, y]
