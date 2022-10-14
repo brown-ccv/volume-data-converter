@@ -95,14 +95,14 @@ def createOsomData(
             raise Exception("current dataset does not support elevation layers")
     else :
         # no elevation data. Map the data to a empty block of 'verticalayers' layers.
-        # Our current cases are surface and bottom. They map to layer 0 adn 14 respectively 
+        # Our current cases are surface and bottom. They map to layer 0 and 14 respectively 
         new_data = np.ma.zeros(
             (data.shape[0], verticalLevels, data.shape[1], data.shape[2]),
             dtype=data.dtype,
         )
         data_slice = 0  # bottom by default
         if layer == "surface":
-            data_slice = verticalLevels - 1
+            data_slice = -1
 
         for i in range(data.shape[0]):
             new_data[i, data_slice, :, :] = data[i, :, :]
@@ -118,8 +118,9 @@ def createOsomData(
     if time_variable_name not in nc_dataFile.variables:
         raise Exception("Time variable not found")
 
-    ocean_time = nc_dataFile.variables[time_variable_name][:]
-    ocean_time_properties = nc_dataFile.variables[time_variable_name]
+    ocean_time_header = nc_dataFile.variables[time_variable_name]
+    ocean_time = ocean_time_header[:]
+    
 
     # Compute and plot ROMS vertical stretched coordinates
     typer.echo(" Computing ROMS vertical stretched coordinates")
@@ -219,8 +220,8 @@ def createOsomData(
                 )
                 ocean_times = cftime.num2date(
                     ocean_time[time_t],
-                    units=ocean_time_properties.units,
-                    calendar=ocean_time_properties.calendar,
+                    units=ocean_time_header.units,
+                    calendar=ocean_time_header.calendar,
                 )
                 fprintf(desc_file, "%s\n", ocean_times.strftime("%Y-%m-%d %H:%M:%S"))
     typer.echo(" End of process")
