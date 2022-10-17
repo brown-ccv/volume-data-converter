@@ -8,7 +8,7 @@
         "protocol": "griddap",
         "dataset_id": "model_data_57db_4a85_81d9"
     },
-    "erddap_constrainst":
+    "erddap_constrainsts":
     {
         "variables":["SalinityBottom","SalinitySurface"],
         "time>=": "2019-12-30T00:00:00Z",
