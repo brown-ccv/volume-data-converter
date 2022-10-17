@@ -1,13 +1,17 @@
 from netCDF4 import Dataset
-import netcdftime
+import cftime
 import typer
 import numpy as np
 import os
 from volume_data_converter import scoord_du_new2 as scoor_du
 from typing import List
 
+import json
+import sys
+from pathlib import Path
 
 app = typer.Typer()
+
 
 
 def fprintf(stream, format_spec, *args):
@@ -15,7 +19,7 @@ def fprintf(stream, format_spec, *args):
 
 
 @app.command()
-def createOsomData(
+def create_osom_data(
     osom_gridfile: str = typer.Argument(..., help="Grid File with space coordinates"),
     osom_data_file: str = typer.Argument(..., help="NC file osom data"),
     output_folder: str = typer.Argument(
@@ -25,6 +29,10 @@ def createOsomData(
     time_frames: List[int] = typer.Option(
         [],
         help=" List of time frames to convert to raw. By default is None: it will convert all the time frames in a .nc file",
+    ),
+    layer: str = typer.Option(
+        "all",
+        help=" Layers of the osom model the nc file maps to. Options: all, surface, bottom",
     ),
 ):
 
@@ -36,9 +44,20 @@ def createOsomData(
     output_folder: location where the resulting data will be saved
     data_descriptor: variable to extract from the osom data file (temp, salt)
     """
+    osom_constants_file_path = os.path.join(
+        Path(__file__).absolute().parent, "config", "constants.json"
+    )
+
+    osom_const_file = open(osom_constants_file_path, "r")
+    osom_configuration_dicc = json.load(osom_const_file)
+
     # Default factors/scalers
-    verticalLevels = 15
-    downscaleFactor = 2
+    verticalLevels = osom_configuration_dicc.get("verticalLevels",15)
+    downscaleFactor = osom_configuration_dicc.get("downscaleFactor",2)
+
+    # check layers
+    if layer not in ["all", "surface", "bottom"]:
+        raise Exception(f"layer option {layer} not supported")
 
     # Read files
     typer.echo(" Reading " + osom_gridfile)
@@ -52,15 +71,56 @@ def createOsomData(
 
     # Assigning data variables
     typer.echo(" Assigning data from data files")
+    if data_descriptor not in nc_dataFile.variables:
+        raise Exception(
+            f"No variable with name: {data_descriptor}. Options are {nc_dataFile.variables}"
+        )
+
     data = nc_dataFile.variables[data_descriptor][:]
-    zeta = nc_dataFile.variables["zeta"][:]
-    vtransform = nc_dataFile.variables["Vtransform"][:]
-    vstretching = nc_dataFile.variables["Vstretching"][:]
-    theta_s = nc_dataFile.variables["theta_s"][:]
-    theta_b = nc_dataFile.variables["theta_b"][:]
-    hc = nc_dataFile.variables["hc"][:]
-    ocean_time = nc_dataFile.variables["ocean_time"][:]
-    ocean_time_properties = nc_dataFile.variables["ocean_time"]
+    data_properties = nc_dataFile.variables[data_descriptor]
+    data_dimensions = data_properties.dimensions
+
+    ## zeta needs a different treatment form the other variables. If it's not in the configuration file, then build it from the descriptor's data itself
+    if "zeta" in nc_dataFile.variables:
+        zeta = nc_dataFile.variables["zeta"][:]
+    else:
+        zeta = np.zeros(shape=data.shape)
+
+    # check if it's a volume or a single slice. Make the corrsponding transformation to 3D array
+
+    if layer.lower() == "all":
+        # s_rho dimension implies that the data is distributed on multiple layers
+        # all is the default value. Check if the dataset is multilayer or not.
+        if "s_rho" not in data_dimensions:
+            raise Exception("current dataset does not support elevation layers")
+    else :
+        # no elevation data. Map the data to a empty block of 'verticalayers' layers.
+        # Our current cases are surface and bottom. They map to layer 0 and 14 respectively 
+        new_data = np.ma.zeros(
+            (data.shape[0], verticalLevels, data.shape[1], data.shape[2]),
+            dtype=data.dtype,
+        )
+        data_slice = 0  # bottom by default
+        if layer == "surface":
+            data_slice = -1
+
+        for i in range(data.shape[0]):
+            new_data[i, data_slice, :, :] = data[i, :, :]
+        data = new_data
+
+    vtransform = nc_dataFile.variables.get("Vtransform",osom_configuration_dicc["Vtransform"])
+    vstretching = nc_dataFile.variables.get("Vstretching",osom_configuration_dicc["Vstretching"])    
+    theta_s = nc_dataFile.variables.get("theta_s",osom_configuration_dicc["theta_s"])
+    theta_b = nc_dataFile.variables.get("theta_b",osom_configuration_dicc["theta_b"])
+    hc = nc_dataFile.variables.get("hc",osom_configuration_dicc["hc"])
+
+    time_variable_name = osom_configuration_dicc["time_variable"]
+    if time_variable_name not in nc_dataFile.variables:
+        raise Exception("Time variable not found")
+
+    ocean_time_header = nc_dataFile.variables[time_variable_name]
+    ocean_time = ocean_time_header[:]
+    
 
     # Compute and plot ROMS vertical stretched coordinates
     typer.echo(" Computing ROMS vertical stretched coordinates")
@@ -114,9 +174,11 @@ def createOsomData(
                         t_data = data[time_t, :, x, y]
                         t_data = np.ma.squeeze(t_data)
                         idx = ~t_data.mask
-                        if np.sum(idx.astype(int)) > 0:
+
+                        if any(idx):
                             # read set depth
-                            domain = z[idx, x, y]
+                            idx_1d = np.atleast_1d(idx)
+                            domain = z[idx_1d, x, y]
                             # read values
                             mapped_values = np.ma.round(t_data[idx], decimals=4)
                             t_new = np.interp(
@@ -156,14 +218,13 @@ def createOsomData(
                     min_data,
                     max_data,
                 )
-                ocean_times = netcdftime.num2date(
+                ocean_times = cftime.num2date(
                     ocean_time[time_t],
-                    units=ocean_time_properties.units,
-                    calendar=ocean_time_properties.calendar,
+                    units=ocean_time_header.units,
+                    calendar=ocean_time_header.calendar,
                 )
                 fprintf(desc_file, "%s\n", ocean_times.strftime("%Y-%m-%d %H:%M:%S"))
     typer.echo(" End of process")
-
 
 def main():
     app()

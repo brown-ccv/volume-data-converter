@@ -1,0 +1,25 @@
+{
+    "APP": {
+        "version": "0.2.0"
+    },
+    "erddap_connection":
+    {
+        "server": "https://pricaimcit.services.brown.edu/erddap",
+        "protocol": "griddap",
+        "dataset_id": "model_data_57db_4a85_81d9"
+    },
+    "erddap_constrainsts":
+    {
+        "variables":["SalinityBottom","SalinitySurface"],
+        "time>=": "2019-12-30T00:00:00Z",
+        "time<=": "2019-12-31T00:00:00Z",
+        "time_step": 1,
+        "eta_rho>=": 0,
+        "eta_rho<=": 1099,
+        "eta_rho_step": 1,
+        "xi_rho>=": 0,
+        "xi_rho<=": 999,
+        "xi_rho_step": 1
+    }
+    
+}

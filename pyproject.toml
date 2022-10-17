@@ -23,9 +23,12 @@ mplhep = "^0.3.26"
 imageio = "^2.21.1"
 Pillow = "^9.2.0"
 pypng = "^0.20220715.0"
-netcdftime = "^1.0.0-alpha.2"
 numpy = "1.22"
 erddapy = "^1.2.1"
+xarray = "^2022.6.0"
+halo = "^0.0.31"
+importlib-resources = "^5.9.0"
+cftime = "^1.6.2"
 
 
 
@@ -37,6 +40,7 @@ autopep8 = "^1.7.0"
 convert2png = "volume_data_converter.tiff_2_png_converter:main"
 raw2tiff = "volume_data_converter.raw_2_tiff_converter:main"
 osom_converter = "volume_data_converter.create_volume_viewer_data:main"
+erdapp-query = "volume_data_converter.erddap_query:main"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
