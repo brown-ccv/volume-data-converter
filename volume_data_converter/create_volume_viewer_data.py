@@ -15,10 +15,8 @@ from pathlib import Path
 app = typer.Typer()
 
 
-
 def fprintf(stream, format_spec, *args):
     stream.write(format_spec % args)
-
 
 
 @app.command()
@@ -51,12 +49,14 @@ def create_osom_data(
         Path(__file__).absolute().parent, "config", "constants.json"
     )
 
+    resources_folder_path = os.path.join(Path(__file__).absolute().parent, "resources")
+
     osom_const_file = open(osom_constants_file_path, "r")
     osom_configuration_dicc = json.load(osom_const_file)
 
     # Default factors/scalers
-    verticalLevels = osom_configuration_dicc.get("verticalLevels",15)
-    downscaleFactor = osom_configuration_dicc.get("downscaleFactor",2)
+    verticalLevels = osom_configuration_dicc.get("verticalLevels", 15)
+    downscaleFactor = osom_configuration_dicc.get("downscaleFactor", 2)
 
     # check layers
     if layer not in ["all", "surface", "bottom"]:
@@ -96,9 +96,9 @@ def create_osom_data(
         # all is the default value. Check if the dataset is multilayer or not.
         if "s_rho" not in data_dimensions:
             raise Exception("current dataset does not support elevation layers")
-    else :
+    else:
         # no elevation data. Map the data to a empty block of 'verticalayers' layers.
-        # Our current cases are surface and bottom. They map to layer 0 and 14 respectively 
+        # Our current cases are surface and bottom. They map to layer 0 and 14 respectively
         new_data = np.ma.zeros(
             (data.shape[0], verticalLevels, data.shape[1], data.shape[2]),
             dtype=data.dtype,
@@ -111,11 +111,15 @@ def create_osom_data(
             new_data[i, data_slice, :, :] = data[i, :, :]
         data = new_data
 
-    vtransform = nc_dataFile.variables.get("Vtransform",osom_configuration_dicc["Vtransform"])
-    vstretching = nc_dataFile.variables.get("Vstretching",osom_configuration_dicc["Vstretching"])    
-    theta_s = nc_dataFile.variables.get("theta_s",osom_configuration_dicc["theta_s"])
-    theta_b = nc_dataFile.variables.get("theta_b",osom_configuration_dicc["theta_b"])
-    hc = nc_dataFile.variables.get("hc",osom_configuration_dicc["hc"])
+    vtransform = nc_dataFile.variables.get(
+        "Vtransform", osom_configuration_dicc["Vtransform"]
+    )
+    vstretching = nc_dataFile.variables.get(
+        "Vstretching", osom_configuration_dicc["Vstretching"]
+    )
+    theta_s = nc_dataFile.variables.get("theta_s", osom_configuration_dicc["theta_s"])
+    theta_b = nc_dataFile.variables.get("theta_b", osom_configuration_dicc["theta_b"])
+    hc = nc_dataFile.variables.get("hc", osom_configuration_dicc["hc"])
 
     time_variable_name = osom_configuration_dicc["time_variable"]
     if time_variable_name not in nc_dataFile.variables:
@@ -123,7 +127,6 @@ def create_osom_data(
 
     ocean_time_header = nc_dataFile.variables[time_variable_name]
     ocean_time = ocean_time_header[:]
-    
 
     # Compute and plot ROMS vertical stretched coordinates
     typer.echo(" Computing ROMS vertical stretched coordinates")
@@ -250,6 +253,7 @@ def create_osom_data(
         )
 
     typer.echo(" End of process")
+
 
 def main():
     app()
