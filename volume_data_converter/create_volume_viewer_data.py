@@ -12,9 +12,6 @@ from pathlib import Path
 
 app = typer.Typer()
 
-osom_constants_file_path = os.path.join(
-    Path(__file__).absolute().parent, "config", "constants.json"
-)
 
 
 def fprintf(stream, format_spec, *args):
@@ -22,7 +19,7 @@ def fprintf(stream, format_spec, *args):
 
 
 @app.command()
-def createOsomData(
+def create_osom_data(
     osom_gridfile: str = typer.Argument(..., help="Grid File with space coordinates"),
     osom_data_file: str = typer.Argument(..., help="NC file osom data"),
     output_folder: str = typer.Argument(
@@ -47,6 +44,9 @@ def createOsomData(
     output_folder: location where the resulting data will be saved
     data_descriptor: variable to extract from the osom data file (temp, salt)
     """
+    osom_constants_file_path = os.path.join(
+        Path(__file__).absolute().parent, "config", "constants.json"
+    )
 
     osom_const_file = open(osom_constants_file_path, "r")
     osom_configuration_dicc = json.load(osom_const_file)
@@ -225,11 +225,6 @@ def createOsomData(
                 )
                 fprintf(desc_file, "%s\n", ocean_times.strftime("%Y-%m-%d %H:%M:%S"))
     typer.echo(" End of process")
-
-
-if __name__ == "__main__":
-    app()
-
 
 def main():
     app()
