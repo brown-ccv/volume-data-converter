@@ -43,5 +43,5 @@ osom_converter = "volume_data_converter.create_volume_viewer_data:main"
 erdapp-query = "volume_data_converter.erddap_query:main"
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ['setuptools>=18.0', "cython>=0.19"]
+

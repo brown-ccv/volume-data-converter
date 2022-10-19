@@ -24,7 +24,6 @@ share/python-wheels/
 MANIFEST
 poetry.lock
 *.log
-*.png
 *.tif
 *.tiff
 *.raw

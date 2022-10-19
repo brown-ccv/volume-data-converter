@@ -1,3 +1,4 @@
+from re import L
 from netCDF4 import Dataset
 import cftime
 import typer
@@ -5,13 +6,13 @@ import numpy as np
 import os
 from volume_data_converter import scoord_du_new2 as scoor_du
 from typing import List
+import shutil
 
 import json
 import sys
 from pathlib import Path
 
 app = typer.Typer()
-
 
 
 def fprintf(stream, format_spec, *args):
@@ -48,12 +49,14 @@ def create_osom_data(
         Path(__file__).absolute().parent, "config", "constants.json"
     )
 
+    resources_folder_path = os.path.join(Path(__file__).absolute().parent, "resources")
+
     osom_const_file = open(osom_constants_file_path, "r")
     osom_configuration_dicc = json.load(osom_const_file)
 
     # Default factors/scalers
-    verticalLevels = osom_configuration_dicc.get("verticalLevels",15)
-    downscaleFactor = osom_configuration_dicc.get("downscaleFactor",2)
+    verticalLevels = osom_configuration_dicc.get("verticalLevels", 15)
+    downscaleFactor = osom_configuration_dicc.get("downscaleFactor", 2)
 
     # check layers
     if layer not in ["all", "surface", "bottom"]:
@@ -93,9 +96,9 @@ def create_osom_data(
         # all is the default value. Check if the dataset is multilayer or not.
         if "s_rho" not in data_dimensions:
             raise Exception("current dataset does not support elevation layers")
-    else :
+    else:
         # no elevation data. Map the data to a empty block of 'verticalayers' layers.
-        # Our current cases are surface and bottom. They map to layer 0 and 14 respectively 
+        # Our current cases are surface and bottom. They map to layer 0 and 14 respectively
         new_data = np.ma.zeros(
             (data.shape[0], verticalLevels, data.shape[1], data.shape[2]),
             dtype=data.dtype,
@@ -108,11 +111,15 @@ def create_osom_data(
             new_data[i, data_slice, :, :] = data[i, :, :]
         data = new_data
 
-    vtransform = nc_dataFile.variables.get("Vtransform",osom_configuration_dicc["Vtransform"])
-    vstretching = nc_dataFile.variables.get("Vstretching",osom_configuration_dicc["Vstretching"])    
-    theta_s = nc_dataFile.variables.get("theta_s",osom_configuration_dicc["theta_s"])
-    theta_b = nc_dataFile.variables.get("theta_b",osom_configuration_dicc["theta_b"])
-    hc = nc_dataFile.variables.get("hc",osom_configuration_dicc["hc"])
+    vtransform = nc_dataFile.variables.get(
+        "Vtransform", osom_configuration_dicc["Vtransform"]
+    )
+    vstretching = nc_dataFile.variables.get(
+        "Vstretching", osom_configuration_dicc["Vstretching"]
+    )
+    theta_s = nc_dataFile.variables.get("theta_s", osom_configuration_dicc["theta_s"])
+    theta_b = nc_dataFile.variables.get("theta_b", osom_configuration_dicc["theta_b"])
+    hc = nc_dataFile.variables.get("hc", osom_configuration_dicc["hc"])
 
     time_variable_name = osom_configuration_dicc["time_variable"]
     if time_variable_name not in nc_dataFile.variables:
@@ -120,7 +127,6 @@ def create_osom_data(
 
     ocean_time_header = nc_dataFile.variables[time_variable_name]
     ocean_time = ocean_time_header[:]
-    
 
     # Compute and plot ROMS vertical stretched coordinates
     typer.echo(" Computing ROMS vertical stretched coordinates")
@@ -149,10 +155,16 @@ def create_osom_data(
     max_data = np.ceil(data.max())
 
     # scale data to the range of 0 and 1
-    data = (data - min_data) / (max_data - min_data)
+    data -= min_data
+    data /= max_data - min_data
 
     OsomDataFilePath, osom_data_filename = os.path.split(osom_data_file)
     osom_data_filename, ext = os.path.splitext(osom_data_filename)
+    if not os.path.exists(output_folder):
+        os.mkdir(output_folder)
+
+    # create volume-viewer osom-data output folder
+    output_folder = os.path.join(output_folder, f"osom-data-{data_descriptor}")
     if not os.path.exists(output_folder):
         os.mkdir(output_folder)
 
@@ -199,16 +211,19 @@ def create_osom_data(
                 f"{data_descriptor}_{osom_data_filename}_timestep{time_t:0{digits}}"
             )
 
+            output_data_folder = os.path.join(output_folder, "data")
+            if not os.path.exists(output_data_folder):
+                os.mkdir(output_data_folder)
+
             with open(
-                os.path.join(output_folder, data_filename + ".raw"), "wb"
+                os.path.join(output_data_folder, data_filename + ".raw"), "wb"
             ) as data_file:
                 outData32 = out_data.astype(np.float32)
                 outData32.tofile(data_file)
 
             ## save description file
-            with open(
-                os.path.join(output_folder, data_filename + ".desc"), "w"
-            ) as desc_file:
+            desc_file_path = os.path.join(output_data_folder, data_filename + ".desc")
+            with open(desc_file_path, "w") as desc_file:
                 fprintf(
                     desc_file,
                     "%u,%u,%u,%.6f,%.6f\n",
@@ -224,7 +239,20 @@ def create_osom_data(
                     calendar=ocean_time_header.calendar,
                 )
                 fprintf(desc_file, "%s\n", ocean_times.strftime("%Y-%m-%d %H:%M:%S"))
+    typer.echo(" Creating volume viewer package")
+    shutil.copytree(resources_folder_path, output_folder, dirs_exist_ok=True)
+    with open(os.path.join(output_folder, "osom-loader.txt"), "a") as loader_file:
+        fprintf(loader_file, f"numVolumes 1 {data_descriptor} \n")
+        fprintf(
+            loader_file, f"volume1  data/{data_filename}.desc 1 1 1 0 0 0 raycast 1\n"
+        )
+
     typer.echo(" End of process")
+
 
 def main():
     app()
+
+
+if __name__ == "__main__":
+    main()
