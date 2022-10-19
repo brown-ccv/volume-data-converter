@@ -161,7 +161,7 @@ def create_osom_data(
     OsomDataFilePath, osom_data_filename = os.path.split(osom_data_file)
     osom_data_filename, ext = os.path.splitext(osom_data_filename)
     if not os.path.exists(output_folder):
-        os.mkdir(output_folder) 
+        os.mkdir(output_folder)
 
     # create volume-viewer osom-data output folder
     output_folder = os.path.join(output_folder, f"osom-data-{data_descriptor}")
@@ -252,6 +252,7 @@ def create_osom_data(
 
 def main():
     app()
+
 
 if __name__ == "__main__":
     main()
