@@ -1,3 +1,7 @@
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
 [tool.poetry]
 name = "volume_data_converter"
 version = "0.1.0"
@@ -41,7 +45,4 @@ convert2png = "volume_data_converter.tiff_2_png_converter:main"
 raw2tiff = "volume_data_converter.raw_2_tiff_converter:main"
 osom_converter = "volume_data_converter.create_volume_viewer_data:main"
 erdapp-query = "volume_data_converter.erddap_query:main"
-
-[build-system]
-requires = ['setuptools>=18.0', "cython>=0.19"]
 
