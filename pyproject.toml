@@ -29,10 +29,10 @@ Pillow = "^9.2.0"
 pypng = "^0.20220715.0"
 numpy = "1.21.2"
 erddapy = "^1.2.1"
-xarray = "^2022.6.0"
 halo = "^0.0.31"
 importlib-resources = "^5.9.0"
 cftime = "^1.6.2"
+xarray = "2022.10.0"
 
 
 
