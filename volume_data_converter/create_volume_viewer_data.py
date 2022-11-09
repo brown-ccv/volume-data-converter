@@ -21,9 +21,7 @@ def fprintf(stream, format_spec, *args):
 
 @app.command()
 def create_osom_data(
-    parameters_file_path: str = typer.Argument(
-        ..., help="Path to parameters json file"
-    )
+    parameters_file_path: str = typer.Argument(..., help="Path to parameters json file")
 ):
 
     """
@@ -42,14 +40,16 @@ def create_osom_data(
     osom_data_file = parameters["osom_data_file"]
     output_folder = parameters["output_folder"]
     data_descriptor = parameters["data_descriptor"]
-    time_frames = parameters.get("time_frames",None)
-    layer =  parameters.get("layer","all")
-    
+    time_frames = parameters.get("time_frames", None)
+    layer = parameters.get("layer", "all")
+
     osom_constants_file_path = os.path.join(
         Path(__file__).absolute().parent, "config", "constants.json"
     )
 
-    resources_folder_path = os.path.join(Path(__file__).absolute().parent, "resources","volume-viewer")
+    resources_folder_path = os.path.join(
+        Path(__file__).absolute().parent, "resources", "volume-viewer"
+    )
 
     osom_const_file = open(osom_constants_file_path, "r")
     osom_configuration_dicc = json.load(osom_const_file)
