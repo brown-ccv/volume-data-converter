@@ -1,0 +1,10 @@
+animated
+mesh textures/OSOM_with_texture_blender_2.obj textures/OSOM_texture_2.png 1
+label labels/Providence.png 282.3593  480.8620   57.0000 170 15 250.0 1
+label labels/narragansett.png 222.3225  293.5203   71.3028 170 15 250.0 1
+label labels/block_island.png 172.3455  178.6527   60.9086 170 15 250.0 1
+#label New_London 48.6138  236.5409   85.3028 170 15 1
+#label New_Bedford 422.4869  326.0600   56.0115 170 15 1
+label labels/marthas_vineyard.png 437.9874  183.3571   56.0000 170 15 250.0 1
+#label Fall_River 376.7867  383.9177   56.0000 170 15 1
+#label Gardiners_Island 99.7552  131.1020   10.3028 170 15 1

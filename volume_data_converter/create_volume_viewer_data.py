@@ -21,20 +21,9 @@ def fprintf(stream, format_spec, *args):
 
 @app.command()
 def create_osom_data(
-    osom_gridfile: str = typer.Argument(..., help="Grid File with space coordinates"),
-    osom_data_file: str = typer.Argument(..., help="NC file osom data"),
-    output_folder: str = typer.Argument(
-        ..., help="Location where the resuilting .raw files will be saved"
-    ),
-    data_descriptor: str = typer.Argument(..., help="Descriptor to query the nc file"),
-    time_frames: List[int] = typer.Option(
-        [],
-        help=" List of time frames to convert to raw. By default is None: it will convert all the time frames in a .nc file",
-    ),
-    layer: str = typer.Option(
-        "all",
-        help=" Layers of the osom model the nc file maps to. Options: all, surface, bottom",
-    ),
+    parameters_file_path: str = typer.Argument(
+        ..., help="Path to parameters json file"
+    )
 ):
 
     """
@@ -45,11 +34,22 @@ def create_osom_data(
     output_folder: location where the resulting data will be saved
     data_descriptor: variable to extract from the osom data file (temp, salt)
     """
+
+    with open(parameters_file_path, "r") as parameters_json:
+        parameters = json.load(parameters_json)
+
+    osom_gridfile = parameters["osom_grid_file"]
+    osom_data_file = parameters["osom_data_file"]
+    output_folder = parameters["output_folder"]
+    data_descriptor = parameters["data_descriptor"]
+    time_frames = parameters.get("time_frames",None)
+    layer =  parameters.get("layer","all")
+    
     osom_constants_file_path = os.path.join(
         Path(__file__).absolute().parent, "config", "constants.json"
     )
 
-    resources_folder_path = os.path.join(Path(__file__).absolute().parent, "resources")
+    resources_folder_path = os.path.join(Path(__file__).absolute().parent, "resources","volume-viewer")
 
     osom_const_file = open(osom_constants_file_path, "r")
     osom_configuration_dicc = json.load(osom_const_file)
