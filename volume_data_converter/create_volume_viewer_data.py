@@ -6,7 +6,7 @@ import numpy as np
 import os
 from volume_data_converter import scoord_du_new2 as scoor_du
 from typing import List
-import shutil
+from distutils.dir_util import copy_tree
 
 import json
 import sys
@@ -65,6 +65,7 @@ def create_osom_data(
     # Read files
     typer.echo(" Reading " + osom_gridfile)
     nc_grid_values = Dataset(osom_gridfile, "r")
+
     typer.echo(" Reading " + osom_data_file)
     nc_dataFile = Dataset(osom_data_file, "r")
 
@@ -163,10 +164,12 @@ def create_osom_data(
     if not os.path.exists(output_folder):
         os.mkdir(output_folder)
 
-    # create volume-viewer osom-data output folder
-    output_folder = os.path.join(output_folder, f"osom-data-{data_descriptor}")
-    if not os.path.exists(output_folder):
-        os.mkdir(output_folder)
+    # create top level volume-viewer osom-data output folder
+    top_level_output_folder = os.path.join(
+        output_folder, f"osom-data-{data_descriptor}"
+    )
+    if not os.path.exists(top_level_output_folder):
+        os.mkdir(top_level_output_folder)
 
     if len(time_frames) == 0:
         time_frames = np.arange(np.shape(data)[0]).tolist()
@@ -211,10 +214,11 @@ def create_osom_data(
                 f"{data_descriptor}_{osom_data_filename}_timestep{time_t:0{digits}}"
             )
 
-            output_data_folder = os.path.join(output_folder, "data")
+            output_data_folder = os.path.join(top_level_output_folder, "data")
             if not os.path.exists(output_data_folder):
                 os.mkdir(output_data_folder)
 
+            ## save osom-data data to file
             with open(
                 os.path.join(output_data_folder, data_filename + ".raw"), "wb"
             ) as data_file:
@@ -240,8 +244,11 @@ def create_osom_data(
                 )
                 fprintf(desc_file, "%s\n", ocean_times.strftime("%Y-%m-%d %H:%M:%S"))
     typer.echo(" Creating volume viewer package")
-    shutil.copytree(resources_folder_path, output_folder, dirs_exist_ok=True)
-    with open(os.path.join(output_folder, "osom-loader.txt"), "a") as loader_file:
+
+    copy_tree(resources_folder_path, top_level_output_folder)
+    with open(
+        os.path.join(top_level_output_folder, "osom-loader.txt"), "a"
+    ) as loader_file:
         fprintf(loader_file, f"numVolumes 1 {data_descriptor} \n")
         fprintf(
             loader_file, f"volume1  data/{data_filename}.desc 1 1 1 0 0 0 raycast 1\n"
