@@ -27,5 +27,4 @@ poetry.lock
 *.tif
 *.tiff
 *.raw
-*.nc
 *metadata*

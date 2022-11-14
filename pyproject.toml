@@ -14,7 +14,7 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.8,<3.11"
+python = ">=3.7.4,<3.7.16"
 opencv-contrib-python = "4.5.4.60"
 tiffile = "^2018.10.18"
 pyseq = "^0.5.5"
@@ -27,12 +27,12 @@ mplhep = "^0.3.26"
 imageio = "^2.21.1"
 Pillow = "^9.2.0"
 pypng = "^0.20220715.0"
-numpy = "1.22"
+numpy = "1.21.2"
 erddapy = "^1.2.1"
-xarray = "^2022.6.0"
 halo = "^0.0.31"
 importlib-resources = "^5.9.0"
 cftime = "^1.6.2"
+xarray = "0.20.0"
 
 
 
