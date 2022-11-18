@@ -14,7 +14,7 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.7.4,<3.7.16"
+python = ">=3.7"
 opencv-contrib-python = "4.5.4.60"
 tiffile = "^2018.10.18"
 pyseq = "^0.5.5"
