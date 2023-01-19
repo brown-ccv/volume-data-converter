@@ -266,7 +266,7 @@ def convert_to_png(
             bits_per_sample,
         )
 
-        ## split path to resolve path of multiple files to be written
+        ## split destination path to resolve file extension.
         parent_folder = os.path.abspath(os.path.join(dest, os.pardir))
         file_base_name = os.path.basename(dest)
         file_name, extension = os.path.splitext(file_base_name)

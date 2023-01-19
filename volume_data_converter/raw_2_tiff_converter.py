@@ -11,7 +11,7 @@ app = typer.Typer()
 
 @app.command()
 def raw_to_tiff(
-    src: str = typer.Argument(..., help="Path to source raw file"),
+    raw_file_path: str = typer.Argument(..., help="Path to source raw file"),
     dest: str = typer.Argument(..., help="Path to Folder where tiffs will be saved"),
     width: int = typer.Argument(
         ..., help="Size of the second dimension of the binary 3D array"
@@ -46,8 +46,8 @@ def raw_to_tiff(
 
     """
 
-    if not os.path.exists(src):
-        raise ValueError(f"ERROR: Verify source path exists:\n{src}")
+    if not os.path.exists(raw_file_path):
+        raise ValueError(f"ERROR: Verify source path exists:\n{raw_file_path}")
     if not os.path.exists(os.path.dirname(dest)):
         raise ValueError(
             f"ERROR: Verify destination path exists:\n{os.path.dirname(dest)}"
@@ -65,8 +65,11 @@ def raw_to_tiff(
     if not (os.path.exists(tiff_folder)):
         os.mkdir(tiff_folder)
 
-    typer.echo("Converting " + src + " to TIFF")
-    with open(src, "rb") as raw_file:
+    raw_data_file_path, raw_data_filename = os.path.split(raw_file_path)
+    raw_data_filename, ext = os.path.splitext(raw_data_filename)
+
+    typer.echo("Converting " + raw_file_path + " to TIFF")
+    with open(raw_file_path, "rb") as raw_file:
         raw_data = np.fromfile(raw_file, dtype=np.float32)
         volume = raw_data.reshape((depth, height, width))
         digits = len(str(volume.shape[0] + 1))
@@ -83,16 +86,13 @@ def raw_to_tiff(
                 slice_array[:, :] = np.multiply(
                     volume[slice, :, :], np.iinfo(output_bit_depth).max
                 ).astype(output_bit_depth)
-                slice_image = np.transpose(slice_array)
+                slice_data = np.transpose(slice_array)
 
                 # save the sequence of images using tiff format
-                raw_data_file_path, raw_data_filename = os.path.split(src)
-                raw_data_filename, ext = os.path.splitext(raw_data_filename)
                 tiff_filename = f"_{raw_data_filename}_slice{slice:0{digits}}"
-                tiff_file = os.path.join(tiff_folder, tiff_filename + ".tif")
-
-                im = Image.fromarray(slice_image, mode=pil_image_mode)
-                im.save(tiff_file)
+                tiff_file_path = os.path.join(tiff_folder, tiff_filename + ".tif")
+                slice_image = Image.fromarray(slice_data, mode=pil_image_mode)
+                slice_image.save(tiff_file_path)
 
     typer.echo("Images written in " + dest)
     typer.echo("End")

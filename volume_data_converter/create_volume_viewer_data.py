@@ -11,6 +11,8 @@ from distutils.dir_util import copy_tree
 import json
 import sys
 from pathlib import Path
+from PIL import Image
+from tiff_2_png_converter import build_image_sequence
 
 app = typer.Typer()
 
@@ -42,6 +44,7 @@ def create_osom_data(
     data_descriptor = parameters["data_descriptor"]
     time_frames = parameters.get("time_frames", None)
     layer = parameters.get("layer", "all")
+    to_texture_atlas = parameters.get("to_texture_atlas", False)
 
     osom_constants_file_path = os.path.join(
         Path(__file__).absolute().parent, "config", "constants.json"
@@ -91,30 +94,25 @@ def create_osom_data(
         zeta = np.zeros(shape=data.shape)
 
     # check if it's a volume or a single slice. Make the corrsponding transformation to 3D array
-
+    single_layer_data = False
     if layer.lower() == "all":
         # s_rho dimension implies that the data is distributed on multiple layers
         # all is the default value. Check if the dataset is multilayer or not.
         if "s_rho" not in data_dimensions:
             raise Exception("current dataset does not support elevation layers")
     else:
-        # no elevation data. Map the data to a empty block of 'verticalayers' layers.
-        # Our current cases are surface and bottom. They map to layer 0 and 14 respectively
-        new_data = np.ma.zeros(
-            (data.shape[0], verticalLevels, data.shape[1], data.shape[2]),
-            dtype=data.dtype,
+        # Single layer case (bottom, surface). Create 3D matrix for each time frame with the
+        # current data and mask the no relevant ( no data ) slices.
+        data = np.ma.resize(
+            data, (data.shape[0], verticalLevels, data.shape[1], data.shape[2])
         )
-        data_slice = 0  # bottom by default
-        if layer == "surface":
-            data_slice = -1
-
-        for i in range(data.shape[0]):
-            new_data[i, data_slice, :, :] = data[i, :, :]
-        data = new_data
+        data[:, 1:, :, :].mask = True
+        single_layer_data = True
 
     vtransform = nc_dataFile.variables.get(
         "Vtransform", osom_configuration_dicc["Vtransform"]
     )
+
     vstretching = nc_dataFile.variables.get(
         "Vstretching", osom_configuration_dicc["Vstretching"]
     )
@@ -196,53 +194,87 @@ def create_osom_data(
                             domain = z[idx_1d, x, y]
                             # read values
                             mapped_values = np.ma.round(t_data[idx], decimals=4)
-                            t_new = np.interp(
-                                query_depths, domain, mapped_values, left=0, right=0
-                            )
-                            out_data[:, x, y] = np.round(t_new, decimals=4)
+
+                            if not single_layer_data:
+                                t_new = np.interp(
+                                    query_depths, domain, mapped_values, left=0, right=0
+                                )
+                                out_data[:, x, y] = np.round(t_new[0:4], decimals=4)
+                            else:
+                                t_new = np.interp(query_depths, domain, mapped_values)
+                                if layer == "surface":
+                                    out_data[-20:, x, y] = np.round(
+                                        t_new[0:20], decimals=4
+                                    )
+                                else:
+                                    # bottom
+                                    out_data[:20, x, y] = np.round(
+                                        t_new[0:20], decimals=4
+                                    )
 
             ## downscale data
             out_data = out_data[::downscaleFactor, ::downscaleFactor, ::downscaleFactor]
-            out_dataShape = out_data.shape
-            out_data = out_data.reshape(
-                (out_dataShape[2], out_dataShape[1], out_dataShape[0])
-            )
 
+            ## set up result data file name path and extensions
             digits = len(str(np.shape(data)[0] + 1))
-            ## save data file
-            data_filename = (
-                f"{data_descriptor}_{osom_data_filename}_timestep{time_t:0{digits}}"
-            )
-
             output_data_folder = os.path.join(top_level_output_folder, "data")
             if not os.path.exists(output_data_folder):
                 os.mkdir(output_data_folder)
 
-            ## save osom-data data to file
-            with open(
-                os.path.join(output_data_folder, data_filename + ".raw"), "wb"
-            ) as data_file:
-                outData32 = out_data.astype(np.float32)
-                outData32.tofile(data_file)
+            data_filename = (
+                f"{data_descriptor}_{osom_data_filename}_timestep{time_t:0{digits}}"
+            )
+            ocean_times = cftime.num2date(
+                ocean_time[time_t],
+                units=ocean_time_header.units,
+                calendar=ocean_time_header.calendar,
+            )
+            if not to_texture_atlas:
+                ## save to regular 3D volume
 
-            ## save description file
-            desc_file_path = os.path.join(output_data_folder, data_filename + ".desc")
-            with open(desc_file_path, "w") as desc_file:
-                fprintf(
-                    desc_file,
-                    "%u,%u,%u,%.6f,%.6f\n",
-                    np.shape(out_data)[0],
-                    np.shape(out_data)[1],
-                    np.shape(out_data)[2],
+                save_file_path = os.path.join(
+                    output_data_folder, data_filename + ".raw"
+                )
+                save_raw_data(out_data, digits, save_file_path)
+                desc_file_path = os.path.join(
+                    output_data_folder, data_filename + ".desc"
+                )
+                out_data_shape = np.shape(out_data)
+                volume_spacing = "1 1 1 0 0 0"
+                save_description_file(
+                    desc_file_path,
+                    out_data_shape[0],
+                    out_data_shape[1],
+                    out_data_shape[2],
                     min_data,
                     max_data,
+                    ocean_times,
                 )
-                ocean_times = cftime.num2date(
-                    ocean_time[time_t],
-                    units=ocean_time_header.units,
-                    calendar=ocean_time_header.calendar,
+            else:
+                ## save to 2D texture atlas
+
+                data_file_path = os.path.join(
+                    output_data_folder, data_filename + ".png"
                 )
-                fprintf(desc_file, "%s\n", ocean_times.strftime("%Y-%m-%d %H:%M:%S"))
+                img_width, img_height, num_slices = save_texture_atlas(
+                    out_data, data_file_path
+                )
+
+                ## save description file
+                volume_spacing = "2 2 2 0 0 0"
+                desc_file_path = os.path.join(
+                    output_data_folder, data_filename + ".png.desc"
+                )
+                save_description_file(
+                    desc_file_path,
+                    img_width,
+                    img_height,
+                    num_slices,
+                    min_data,
+                    max_data,
+                    ocean_times,
+                )
+
     typer.echo(" Creating volume viewer package")
 
     copy_tree(resources_folder_path, top_level_output_folder)
@@ -251,15 +283,76 @@ def create_osom_data(
     ) as loader_file:
         fprintf(loader_file, f"numVolumes 1 {data_descriptor} \n")
         fprintf(
-            loader_file, f"volume1  data/{data_filename}.desc 1 1 1 0 0 0 raycast 1\n"
+            loader_file,
+            f"volume1  data/{data_filename}.desc {volume_spacing} raycast 1\n",
         )
 
     typer.echo(" End of process")
+
+
+def save_texture_atlas(volue_data: np.array, save_file_path: str):
+    num_slices = volue_data.shape[0]
+    output_bit_depth = np.uint16
+    images_in_sequence_n_bits = [None] * num_slices
+    for slice in range(num_slices):
+        slice_array = np.zeros(
+            shape=(volue_data.shape[1], volue_data.shape[2]), dtype=output_bit_depth
+        )
+        slice_array[:, :] = np.multiply(
+            volue_data[slice, :, :], np.iinfo(output_bit_depth).max
+        ).astype(output_bit_depth)
+        slice_data = np.transpose(slice_array)
+        images_in_sequence_n_bits[slice] = slice_data
+
+    image_out = build_image_sequence(
+        images_in_sequence_n_bits,
+        volue_data.shape[1],
+        volue_data.shape[2],
+        num_slices,
+        output_bit_depth,
+    )
+    pil_image_mode = "I;16"
+    result_texture_atlas = Image.fromarray(image_out, mode=pil_image_mode)
+    result_texture_atlas.save(save_file_path)
+    return image_out.shape[1], image_out.shape[0], num_slices
+
+
+def save_raw_data(raw_data: np.array, save_file_path: str):
+    ## reshape to depth x height x width
+    raw_data = raw_data.reshape(
+        (raw_data.shape[2], raw_data.shape[1], raw_data.shape[0])
+    )
+    ## save osom-data data to file
+    with open(save_file_path, "wb") as data_file:
+        outData32 = raw_data.astype(np.float32)
+        outData32.tofile(data_file)
+
+
+def save_description_file(
+    desc_file_path: str,
+    data_width: int,
+    data_height: int,
+    data_depth: int,
+    data_min_value: float,
+    data_max_value: float,
+    ocean_times,
+):
+    ## save description file
+    with open(desc_file_path, "w") as desc_file:
+        fprintf(
+            desc_file,
+            "%u,%u,%u,%.6f,%.6f\n",
+            data_width,
+            data_height,
+            data_depth,
+            data_min_value,
+            data_max_value,
+        )
+
+        fprintf(desc_file, "%s\n", ocean_times.strftime("%Y-%m-%d %H:%M:%S"))
 
 
 def main():
     app()
 
 
-if __name__ == "__main__":
-    main()
