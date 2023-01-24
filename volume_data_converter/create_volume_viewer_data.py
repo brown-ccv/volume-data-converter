@@ -29,10 +29,14 @@ def create_osom_data(
     """
     Converts NETCDF files (*.nc) from the osom model to data files that can be read
     in the volume viewer desktop app
-    osom_gridfile: grid file providing uv transformation coordinates ( i.e: file provided by this tool osom_grid4_mindep_smlp_mod7.nc)
-    osom_data_file: osom data file with multi-variable data
-    output_folder: location where the resulting data will be saved
-    data_descriptor: variable to extract from the osom data file (temp, salt)
+    parameters_file_path: Path to parameters json file
+    Parameter descriptor file is a Json text file that must contain the following key-value attributes:
+    osom_data_file(str): osom data file with multi-variable data
+    output_folder(str): location where the resulting data will be saved
+    data_descriptor(str): variable to extract from the osom data file (temp, salt)
+    time_frames(array): if the nc dataset contains multiple time frames, this array specifies the frames to convert to volume viewer data. By default it will convert all the dataset.
+    layer(str): options are all(defautl),surface or bottom
+    to_texture_atlas(bool): export nc dataset as a 2D texture atlas instead of 3D volume matrix
     """
 
     with open(parameters_file_path, "r") as parameters_json:
@@ -102,7 +106,7 @@ def create_osom_data(
             raise Exception("current dataset does not support elevation layers")
     else:
         # Single layer case (bottom, surface). Create 3D matrix for each time frame with the
-        # current data and mask the no relevant ( no data ) slices.
+        # current data and mask the non-relevant ( no data ) slices.
         data = np.ma.resize(
             data, (data.shape[0], verticalLevels, data.shape[1], data.shape[2])
         )
