@@ -12,7 +12,7 @@ import json
 import sys
 from pathlib import Path
 from PIL import Image
-from tiff_2_png_converter import build_image_sequence
+from volume_data_converter import tiff_2_png_converter
 
 app = typer.Typer()
 
@@ -308,7 +308,7 @@ def save_texture_atlas(volue_data: np.array, save_file_path: str):
         slice_data = np.transpose(slice_array)
         images_in_sequence_n_bits[slice] = slice_data
 
-    image_out = build_image_sequence(
+    image_out = tiff_2_png_converter.build_image_sequence(
         images_in_sequence_n_bits,
         volue_data.shape[1],
         volue_data.shape[2],
@@ -360,3 +360,5 @@ def main():
     app()
 
 
+if __name__ == "__main__":
+    main()
