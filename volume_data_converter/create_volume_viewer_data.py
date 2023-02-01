@@ -239,7 +239,7 @@ def create_osom_data(
                 save_file_path = os.path.join(
                     output_data_folder, data_filename + ".raw"
                 )
-                save_raw_data(out_data, digits, save_file_path)
+                save_raw_data(out_data, save_file_path)
                 desc_file_path = os.path.join(
                     output_data_folder, data_filename + ".desc"
                 )
