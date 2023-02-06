@@ -2,7 +2,7 @@
 
 Project to convert tiff image sequences ( 3D volume ) to a 2D png downscaled texture atlas. This application can be used to port volumes to the [aframe volume viewer](https://github.com/brown-ccv/react-volume-viewer).
 
-## Suppoort to Rhode Island Discovery and Dada Center Volume Viewer
+## Support to Rhode Island Discovery and Data Center Volume Viewer
 
 You can use this application to query data from an [Erddap server](https://pricaimcit.services.brown.edu/erddap) and convert it into `.raw` and/or `.png` files to visualize it in 3D using the [3D-volume-viewer](https://github.com/brown-ccv/VR-Volumeviewer) and [aframe volume viewer](https://github.com/brown-ccv/react-volume-viewer).
 
@@ -126,11 +126,11 @@ The command `osom-converter` has only one parameter:
 ```
 
 - There is an example grid file located in the `resources\grid-data` folder
-- The `osom_data_file` is the resulting osom-nc file fomr the `erddap_query` command.
+- The `osom_data_file` is the resulting osom-nc file from the `erddap_query` command.
 - `data_descriptor` is one of the variables in the erddap data base.
-- When the osom-nc files respresent multiple time frames ( i.e data representing different hours in a day ), the data is store in an 1D-array. `time_frames` argument specify the time frame you want to convert into volume viewer data. By default, it will convert all the available time frames.
-- Some datasets are multilayered. The `layer` argument let you specify if the dataset has only one  (`surface`, `bottom`) or multiple (`all`) layers
-- `to_texture_atlas` set to True will convert the nc files into a 2D png texture atlas that can be readed by the [aframe volume viewer](https://github.com/brown-ccv/react-volume-viewer).
+- When the osom-nc files respresent multiple time frames ( i.e data representing different hours in a day ), the data is stored in an 1D-array. The `time_frames` argument specify the time frame you want to convert into volume viewer data. By default, it will convert all the available time frames.
+- Some datasets are multi-layered. The `layer` argument lets you specify if the dataset has only one layer (`surface`, `bottom`) or multiple layers (`all`).
+- `to_texture_atlas` set to True will convert the nc files into a 2D png texture atlas that can be read by the [aframe volume viewer](https://github.com/brown-ccv/react-volume-viewer).
 
 #### Important for Desktop volume viewer for Mac Users
 
