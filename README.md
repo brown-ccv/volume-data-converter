@@ -39,7 +39,7 @@ To verify the command runs correctly, run the command:
 
 `convert2png --help`
 
-You should see the available paramaters that can be used.
+You should see the available parameters that can be used.
 
 - The first mandatory argument is the path to the source folder containing the tiff image sequence.  
 - The second mandatory argument is the path to the folder where the png file will be saved.
