@@ -87,8 +87,19 @@ def create_osom_data(
     if not os.path.exists(output_folder):
             os.mkdir(output_folder)
 
+    # check nc model has user defined variables and warn the user
+    
+    set_data_descriptor = set(data_descriptor)
+    set_nc_datafile_variables = set(nc_dataFile.variables)
+    invalid_nc_datafile_variables = set_data_descriptor.difference(set_nc_datafile_variables)
+    valid_nc_variabes = set_data_descriptor & set_nc_datafile_variables    
+    if  len(valid_nc_variabes) == 0:
+            raise Exception(f"Data descriptors defined in {parameters_file_path} found in NC data file")
+    elif len(invalid_nc_datafile_variables) != 0:
+            typer.echo(f"Data Descriptors {invalid_nc_datafile_variables} not found in  NC data file. Continuing with valid descriptors ${valid_nc_variabes}")    
+
     # create top level volume-viewer osom-data output folder
-    valid_nc_variabes = set(data_descriptor) & (set(nc_dataFile.variables))
+    valid_nc_variabes = set_data_descriptor & set_nc_datafile_variables    
     file_descriptor = ""
     for variable in valid_nc_variabes:
         file_descriptor += f"-{variable}"
@@ -103,9 +114,6 @@ def create_osom_data(
     typer.echo(" Assigning data from data files")
     
     for descriptor_index,descriptor in enumerate(valid_nc_variabes):
-        if  descriptor not in nc_dataFile.variables:
-            typer.echo(f"variable {descriptor} not found")
-            continue
     
         data = nc_dataFile.variables[descriptor][:]
         data_properties = nc_dataFile.variables[descriptor]
@@ -119,11 +127,10 @@ def create_osom_data(
 
         # check if it's a volume or a single slice. Make the corrsponding transformation to 3D array
         single_layer_data = False
-        if layers[descriptor_index].lower() == "all":
+        if layers[descriptor_index].lower() == "all" and "s_rho" not in data_dimensions:
             # s_rho dimension implies that the data is distributed on multiple layers
             # all is the default value. Check if the dataset is multilayer or not.
-            if "s_rho" not in data_dimensions:
-                raise Exception("current dataset does not support elevation layers")
+            raise Exception("current dataset does not support elevation layers")
         else:
             # Single layer case (bottom, surface). Create 3D matrix for each time frame with the
             # current data and mask the non-relevant ( no data ) slices.
