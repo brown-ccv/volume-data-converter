@@ -14,7 +14,7 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.7,<3.11"
+python = ">=3.10,<3.11"
 opencv-contrib-python = "4.5.4.60"
 tiffile = "^2018.10.18"
 pyseq = "^0.5.5"
@@ -32,7 +32,7 @@ halo = "^0.0.31"
 importlib-resources = "^5.9.0"
 cftime = "^1.6.2"
 xarray = "^0.20.0"
-pillow = "9.2.0"
+pillow = "12.3.0"
 
 
 
